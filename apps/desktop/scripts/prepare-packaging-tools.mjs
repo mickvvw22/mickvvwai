@@ -42,6 +42,24 @@ function copyTool(from, to) {
   return to
 }
 
+/** @param {string} directory @returns {void} */
+export function ensureCommonJsPackageScope(directory) {
+  const packageFile = path.join(directory, 'package.json')
+  let metadata = {}
+  if (fs.existsSync(packageFile)) {
+    if (fs.lstatSync(packageFile).isSymbolicLink()) throw new Error(`Icon tool package scope must not be a symlink: ${packageFile}`)
+    metadata = JSON.parse(fs.readFileSync(packageFile, 'utf8'))
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+      throw new Error(`Icon tool package metadata must be a JSON object: ${packageFile}`)
+    }
+    if (metadata.type && metadata.type !== 'commonjs') {
+      throw new Error(`Icon toolset package must use CommonJS; found type=${metadata.type}`)
+    }
+  }
+  if (metadata.type === 'commonjs') return
+  fs.writeFileSync(packageFile, `${JSON.stringify({ ...metadata, type: 'commonjs' }, null, 2)}\n`)
+}
+
 /**
  * Acquire bytes without signing credentials. Builder modules are loaded only
  * after the explicit cache root has been selected, before their lazy state runs.
@@ -91,10 +109,12 @@ async function acquirePackagingTools({ source, out, cache, target, formats, buil
     sevenZip.getPath7za(), icons.getIconsToolsetPath(config.toolsets?.icons, resourcesDir),
   ])
   const electron = copyTool(archive, path.join(out, 'electron.zip'))
+  const iconsDirectory = copyTool(iconTools, path.join(out, 'icons'))
+  ensureCommonJsPackageScope(iconsDirectory)
   /** @type {import('./prepared-packaging.mjs').PackagingToolsets} */
   const toolsets = {
     sevenZip: copyTool(path.dirname(path.dirname(archiveTool)), path.join(out, 'sevenZip')),
-    icons: copyTool(iconTools, path.join(out, 'icons')),
+    icons: iconsDirectory,
   }
   let windows = null
   if (process.platform === 'win32') {

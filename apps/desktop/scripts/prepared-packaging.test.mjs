@@ -5,6 +5,7 @@ import path from 'node:path'
 import { afterEach, test } from 'vitest'
 import * as prepared from './prepared-packaging.mjs'
 import { validatePreparedBuilderArgs } from './run-electron-builder.mjs'
+import { ensureCommonJsPackageScope } from './prepare-packaging-tools.mjs'
 import { spawnSync } from 'node:child_process'
 
 /** @type {string[]} */
@@ -30,6 +31,24 @@ function fixture() {
   fs.writeFileSync(path.join(icons, 'icon-tool.js'), 'icon tool fixture')
   return { source, out, electron, sevenZip, icons }
 }
+
+test('icon tool helper keeps its CommonJS scope below the desktop ESM package', () => {
+  const { source } = fixture()
+  const desktop = path.join(source, 'apps/desktop')
+  const icons = path.join(desktop, 'build/prepared-packaging-tools/icons')
+  fs.writeFileSync(path.join(desktop, 'package.json'), JSON.stringify({ type: 'module' }))
+  fs.mkdirSync(icons, { recursive: true })
+  fs.writeFileSync(path.join(icons, 'icon-tool.js'), 'const fs = require("node:fs"); if (!fs) process.exit(1)\n')
+
+  const before = spawnSync(process.execPath, [path.join(icons, 'icon-tool.js')], { encoding: 'utf8' })
+  assert.notEqual(before.status, 0)
+  assert.match(before.stderr, /require is not defined/)
+
+  ensureCommonJsPackageScope(icons)
+  const after = spawnSync(process.execPath, [path.join(icons, 'icon-tool.js')], { encoding: 'utf8' })
+  assert.equal(after.status, 0, after.stderr)
+  assert.equal(JSON.parse(fs.readFileSync(path.join(icons, 'package.json'), 'utf8')).type, 'commonjs')
+})
 
 test('a failed preparation invalidates an earlier completion claim before loading suppliers', () => {
   const { source, out } = fixture()
