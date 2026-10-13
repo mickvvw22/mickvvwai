@@ -67,6 +67,7 @@ jobs:
         shell: bash
         env:
           PYTHONUTF8: '1'
+          npm_config_replace_registry_host: always # map lockfile mirror hosts to the configured registry; integrity checks remain enabled
         run: |
           set -euo pipefail
           python3 scripts/bundles/desktop.py --commit "$GITHUB_SHA" --variant bundled --prepare-only \
