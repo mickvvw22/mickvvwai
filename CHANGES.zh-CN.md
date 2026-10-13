@@ -1,0 +1,777 @@
+# 改动详情（相对上游）
+
+本文记录 **Xinyuan** 相对上游 [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) 的全部改动，
+包含每一项的**现象、根因、修法、验证方式**。按改动发生的顺序排列。
+
+- 上游基线（v0.17.3，本文第 1~12 节）：桌面端 `0.17.3`，上游提交 `2d15a72b5120`（2026-09-16）
+- 上游基线（v0.21.7，本文第 13 节）：上游 `main` 提交 `3569e846`（2026-10-12），窗口内约 1,737 个提交
+- 上游协议：MIT，Copyright (c) 2025 Nous Research（`LICENSE` 未做任何修改）
+
+> **版本号是怎么定的**：上一版取的是上游桌面端 `apps/desktop/package.json` 里的版本号（当时为
+> `0.17.3`）。上游在本次重构中已把该字段重置为 `0.0.0`，改为构建时从 release tag 注入，
+> 所以这个来源不再存在。本版起改为对齐**上游的 release 版本号** —— 合并点的上游 `main`
+> 紧跟在 `v0.21.7` 之后发布，故本版号为 `0.21.7`。
+
+---
+
+## 1. 修复：界面图标全部变成方块
+
+### 现象
+所有图标（侧栏、按钮、状态栏）都渲染成豆腐块 `□`，但界面其余部分正常。
+
+### 根因
+图标系统用的是**字体图标**（`@vscode/codicons`，通过 `<i class="codicon codicon-xxx">` 使用），
+字体经 `src/styles.css` 的 `@import '@vscode/codicons/dist/codicon.css'` 引入。
+
+问题出在 Vite 对 CSS 的处理上：
+
+- `@import` 进来的 CSS 里若有**相对 `url()` 解析不到**，Vite **只发 warning、原样保留**该 URL（不重写、不加哈希）；
+- 这与 JS `import` 的行为不同（后者会直接报错），所以构建**能成功**，问题被完全掩盖；
+- 本机依赖目录里 `@vscode/codicons/dist/codicon.ttf` 恰好缺失（安装被中断），
+  于是产物 CSS 仍指向 `node_modules` 下的路径 → 运行时字体加载 404 → 所有字形回退成豆腐块。
+
+### 修法（双保险）
+1. **补回字体**：从 npm 镜像重新拉取 `@vscode/codicons` 的 tarball，恢复 `codicon.ttf`（125,828 字节，magic `00010000`）。
+2. **源码自带一份**：把字体复制到 `apps/desktop/src/fonts/codicon.ttf`，并在 `src/styles.css` 中新增：
+
+```css
+/* 与依赖包内那条同字体族、同描述符，因此按 CSS 规范后者生效，可覆盖它 */
+@font-face {
+  font-family: 'codicon';
+  font-display: block;
+  src: url('./fonts/codicon.ttf') format('truetype');
+}
+```
+
+关键点：**描述符必须与包内那条完全一致**（只写 `font-display: block`，
+**不要**额外写 `font-style` / `font-weight`）。CSS Fonts 规范中，同 `font-family` 且描述符完全相同的
+`@font-face` 由**后声明者**胜出；一旦描述符多出一个，就会变成两个独立字体集参与匹配，
+反而可能盖掉 `.codicon { font: normal normal normal 16px/1 codicon }` 的简写设置。
+
+### 验证
+- 产物中出现 `dist/assets/codicon-<hash>.ttf`；
+- 构建后扫描产物 CSS，**未解析的 `@font-face` URL 数量 = 0**；
+- 两条 `codicon` 的 `@font-face` 都指向该文件。
+
+---
+
+## 2. 精简：API 配置只保留一个入口
+
+### 改动前
+首启向导是一个「供应商目录」：OAuth 登录、各家 API Key 列表、本地模型、Fireworks / OpenRouter 等多个入口。
+
+### 改动后
+全应用**只有一个**模型配置表单，出现在两处（首启遮罩 + 设置页），共用同一个组件：
+
+| 字段 | 行为 |
+| --- | --- |
+| 接口地址 | **固定** `https://yuangeluyou.com/v1`，只读展示，用户改不了 |
+| API 密钥 | 用户填写（密码框） |
+| 模型名称 | 用户填写，带「获取模型」按钮（可选，探测失败也不阻塞提交） |
+
+### 实现
+新增两个文件：
+
+- `apps/desktop/src/components/onboarding/xinyuan-form.tsx` —— 表单本体
+- `apps/desktop/src/app/settings/xinyuan-settings.tsx` —— 设置页外壳
+
+复用程序**内置的 custom endpoint 能力**，没有新增任何后端接口：
+
+```
+validateProviderCredential('OPENAI_BASE_URL', baseUrl, apiKey)   // 探测模型列表
+  → saveCustomEndpoint({ id, name, base_url, model, api_key, discover_models: false, make_default: true })
+  → activateCustomEndpoint(id)
+  → ctx.requestGateway('reload.env')
+  → completeDesktopOnboarding()
+```
+
+设计取舍：
+- `discover_models: false` + 模型名必填 —— 避免「探测不到模型列表就无法提交」把用户卡死；
+- 不调用 `setMainModelAssignment`，保持改动面最小。
+
+配套清理：
+- `onboarding/index.tsx` 里删掉供应商目录相关的行组件与「显示全部 / 稍后再说」开关（对单入口已无意义）；
+- `app/settings/index.tsx` 删除 Keys / Providers 子导航与整套 subview 机制，导航项合并为单项「Xinyuan API」；
+- 保留 `'keys'` 作为历史别名并加重定向（路由参数枚举会把不在枚举里的 `?tab=` 值**静默改写**成默认值，
+  直接删会导致旧链接行为异常）。
+
+### 验证
+- ESLint 全量 `0 error`；
+- 产物 JS 中确认包含 `yuangeluyou.com/v1`，且「稍后再说」文案出现次数归零。
+
+---
+
+## 3. 更名：Hermes → Xinyuan
+
+### 覆盖范围
+
+| 范围 | 处数 | 说明 |
+| --- | --- | --- |
+| 界面文案（6 个语言：en / zh / zh-hant / ja / ru / ar） | 1,037 | `src/i18n/*.ts` |
+| `src/` + `electron/` 下的用户可见字符串 | 212（101 个文件） | 只替换字符串字面量 |
+| `apps/desktop/package.json` | 8 处 | `productName` / `appId` / `executableName` / `artifactName` / NSIS 名称 / mac 的 `CFBundle*` 等 |
+| Windows exe 版本元数据 | 4 项 | 由 `scripts/set-exe-identity.mjs` 在打包后写入 |
+| `index.html` 标题 | 1 | |
+
+### 刻意**不改**的东西
+
+- **代码标识符**：`HERMES_*` 环境变量、`hermes://` 协议、`window.hermesDesktop`、`HermesApiRequest` 等
+  —— 改动它们会破坏功能，且与用户可见文案无关。
+- **i18n 的对象键**：只改值不改键（例如 `restartHermes: 'Restart Xinyuan'`）。
+- workspace 包名 `name: 'hermes'`（改了会连带影响构建脚本与依赖解析）。
+
+### 替换方式（避免误伤）
+用带边界的正则，只替换「引号开头且后面不是标识符字符」的出现：
+
+```python
+PAT = re.compile(r"(['\"`])Hermes(?![A-Za-z0-9_$])")
+new, n = PAT.subn(r"\1Xinyuan", text)
+```
+
+替换后自查 `[A-Za-z0-9_$]Xinyuan` 形式的粘连，确认为 0。
+
+### 容易漏的一处
+exe 的图标与版本信息**不是** electron-builder 写的 —— 配置里 `signAndEditExecutable: false`
+会连带跳过 rcedit，改由项目自己的 `afterPack` 钩子 `scripts/set-exe-identity.mjs` 补。
+该脚本里 `ProductName` / `CompanyName` 等是**硬编码**的，改名时必须一起改，否则属性面板仍显示旧品牌。
+
+验证方式：把 exe 按 UTF-16LE 统计字符串出现次数 ——
+`Xinyuan` 出现 4 次、`Nous Research` 0 次、`Hermes` 0 次。
+
+---
+
+## 4. 移除上游品牌 logo
+
+### 删除的资源
+上游的 logo、插画、精灵图与启动动画帧，共 7 组（删除前已备份到仓库外，未随仓库发布）。
+
+### 替换为中性图标
+用程序生成「靛蓝 → 紫罗兰圆角渐变 + 白色 X」，替换：
+
+| 文件 | 用途 |
+| --- | --- |
+| `apps/desktop/assets/icon.png` | 应用图标源图（1024×1024） |
+| `apps/desktop/assets/icon.ico` | Windows 图标（7 个尺寸：16/24/32/48/64/128/256） |
+| `apps/desktop/public/apple-touch-icon.png` | 窗口图标（**保留原文件名换内容**，主进程按文件名引用） |
+| `apps/desktop/public/intro-mark.png` | 启动动画立方体贴图 |
+
+### 组件层面
+`BrandMark` 组件**保留对外 API**（同样的 `className` 驱动尺寸），只把内部实现换成中性 SVG。
+这样 5 个调用点的布局完全不用动。
+
+---
+
+## 5. 🔴 修复：首次启动必然超时失败（最关键的一项）
+
+### 现象
+便携包解压后双击启动器：
+
+- 窗口能出来，`data\`、`data\desktop\` 都正常创建，`data\logs\desktop.log` 也写了；
+- 但日志最后是：
+
+```
+Ignoring stale Hermes backend exit (1)
+[boot] Desktop boot failed: Timed out waiting for Hermes backend port announcement (90000ms)
+```
+
+### 排查过程（都不属于「读代码能看出来」的类型）
+
+1. **手动复现后端**：带正确的 `PYTHONPATH` 直接跑
+   `python -m hermes_cli.main serve --host 127.0.0.1 --port 0`，
+   秒级打印 `HERMES_BACKEND_READY port=…` → 排除 Python 环境问题。
+2. **发现日志看不到后端输出**：超时抛的错（`backend-ready.ts`）**不带输出尾巴**，
+   而子进程 `stdout/stderr` 的转发是在 `claimBackendChild()` **之后**才挂上的，
+   早期崩溃的 traceback 只进了一个临时缓冲区然后被丢弃。→ 必须自己手动复现。
+3. **主线程栈采样**：起一个线程每 2 秒 dump `sys._current_frames()`，用
+   `runpy.run_module("hermes_cli.main", run_name="__main__")` 跑起来。卡点以重复的顶帧暴露：
+   ```
+   hermes_cli/main.py  _dashboard_prepare_runtime
+     → main_tui_launch.py:850  _sync_bundled_skills_quietly
+       → tools/skills_sync.py:397  sync_skills
+         → _install_new_skill → _copy_dir → shutil.copytree
+   ```
+4. **目录轮询**：每秒 diff 数据目录整棵树，新文件带时间戳打印。确认
+   **0 → 96 秒全在写 `skills\**`**，之后到 READY 只用 12 秒。
+
+### 根因
+后端 `serve` 在绑定端口**之前**，要把 `backend/skills` 下的内置技能同步进 `HERMES_HOME/skills`。
+判断「是否已同步」的依据是同步清单 `skills/.bundled_manifest`（v2 格式，每行 `name:origin_hash`）。
+清单不存在 → 每个技能都算新技能 → 全量 `copytree`。
+
+在慢盘上，**328 个技能文件逐个复制需要 85~109 秒**，而桌面端等待后端端口公告的超时是 **90000 ms**。
+新用户第一次启动必然踩线失败。
+
+### 修法
+打包时把一次**成功启动后**的 `HERMES_HOME/skills`（含 `.bundled_manifest`）预置进便携包的 `data/skills`。
+
+**为什么可以随包分发到任意机器**：清单里的哈希由 `_dir_hash()` 计算，
+它只把 **相对路径**（`str(fpath.relative_to(directory))`）+ **文件内容** 喂给 MD5，
+**不含任何绝对路径**。所以换机器、换解压目录后哈希依然相等，首启直接走 skip 分支。
+
+> 注意：`str(Path)` 在 Windows 产出反斜杠、在 POSIX 产出正斜杠，
+> 因此该清单**不能跨平台复用**（Windows → Windows 没问题）。
+
+### 效果
+
+| 场景 | 到 `HERMES_BACKEND_READY` |
+| --- | --- |
+| 全新数据目录（现场播种 328 个文件） | **85 ~ 109 秒**（超过 90 秒超时，失败） |
+| 预置 `skills/` + `.bundled_manifest` | **6.5 秒** |
+
+端到端（双击启动器 → `Xinyuan backend is ready. Finalizing desktop startup`）：**12.6 秒**。
+
+### 预置时**不要**带的东西
+`state.db*`、`shared-state.db*`、`spawn-ledger.json`、`logs/`、`sessions/`、`memories/`、
+`pairing/`、`SOUL.md`、`.update_check`、`data/desktop/`（Electron userData，内含按构建路径缓存的 Cache）。
+这些是**机器状态**而不是内容，带上会引入陈旧的锁与绝对路径。
+
+最终 `data/` 只有 `config.yaml` + `skills/`。
+
+---
+
+## 6. 便携打包与启动器编码
+
+### 启动器 `.bat` 必须纯 ASCII
+这是本轮踩到的最隐蔽的坑。启动器里原本写了中文注释，结果：
+
+- cmd.exe 按系统 **OEM 代码页**（中文系统是 CP936）**逐字节**扫描批处理文件；
+- 文件里混入 UTF-8 编码的中文（3 字节、首字节 ≥ 0xE0）后，双字节扫描器错位，
+  **吞掉行尾 CRLF 的 `\r`** 或吞掉 `)`；
+- 结果把 `set "HERMES_DESKTOP_HERMES_ROOT=…"` 这类行**从中间截断**，
+  报出 `'SKTOP_HERMES_ROOT' 不是内部或外部命令` —— 应用根本起不来。
+
+修法：启动器**全部改英文注释**，用 `encoding="ascii"` 写出；中文说明移到单独的 `README.txt`
+（文件名也保持 ASCII，内容用 `utf-8-sig`，记事本能正确显示中文）。
+
+验证：`Start-Xinyuan.bat` 2030 字节、**非 ASCII 字节数 = 0**、CRLF 59 个、孤立 LF 0 个。
+
+### 其他打包要点
+- **`app\` 必须原样整树复制**。用全局忽略规则（含 `node_modules`）去剪 `app\`，
+  会误剪 `resources\app.asar.unpacked\dist\node_modules\`（`get-windows`、`node-pty` 等原生模块），
+  导致 Electron 主进程加载失败后**静默回落**到 `default_app.asar`：不出窗口、stdout 一行都没有、不写日志。
+  因此 `app\` 用「什么都不剪」的复制函数，复制后做全量树比对。
+- **`backend\venv\Scripts\python.exe` 必须不存在**，否则桌面端会优先选它而不是包内自带的解释器。
+- **必须删掉 editable 安装痕迹**（`__editable___*_finder.py` 里含硬编码绝对路径）。
+
+---
+
+## 7. 放宽安全审核限制
+
+见 README 的「⚠️ 关于安全审核设置」一节。配置文件为便携包内的 `data/config.yaml`：
+
+| 配置项 | 上游默认 | 本版本 |
+| --- | --- | --- |
+| `approvals.mode` | `'smart'`（需人工审批） | `'off'` |
+| `security.redact_secrets` | `true` | `false` |
+| `security.allow_private_urls` | `false` | `true` |
+| `security.protected_instruction_files` | `true` | `false` |
+
+这是为了让「解压即用」不打扰用户而做的**刻意取舍**，风险已在 README 中明确标注。
+
+### v0.21.7 的两处修正
+
+1. **`security.tirith_*` 已退役，不再写入。**
+   上游 v50 配置版本把内置的 tirith 命令扫描器从产品中移除
+   （`hermes_cli/config_migrations.py::_RETIRED_TIRITH_KEYS`，迁移步骤 49 → 50）。
+   旧版写进 `config.yaml` 的 `tirith_enabled` / `tirith_path` / `tirith_timeout` /
+   `tirith_fail_open` 四个键**现在没有任何代码读取**，留着只会在首次启动时被迁移删掉，
+   所以本版直接不写。
+
+2. **新增 `security.protected_instruction_files: false` —— 不设它，「无审批」就是假的。**
+   这是上游新增的一道**独立闸门**：改写 `AGENTS.md` / `CLAUDE.md` / `SOUL.md` /
+   `.cursorrules` / 项目级 `.hermes` 配置时，**即使 `approvals.mode` 为 `off`、即使开了
+   yolo，也仍然强制弹窗审批**。上游的设计注释写得很直白：
+
+   > `# Writes to agent-instruction files (AGENTS.md/CLAUDE.md/SOUL.md/.cursorrules, project-local`
+   > `# .hermes config) always need human approval, even under yolo.`
+
+   实现位置：`tools/file_tools_write_guards.py`，读 `security.protected_instruction_files`
+   （默认 `True`）。`approvals.mode: off` 的短路发生在 `tools/approval.py::_gate_human_approval`
+   里，**早于**这条闸门的调用点，所以关不掉它。
+
+   要保持与上游旧版一致的「完全不弹窗」，必须显式设为 `false`。
+
+### 刻意**保留**的安全底线
+
+以下拦截**不随 `approvals.mode: off` 放开**，本版同样保留（与上一版一致）：
+
+- **hardline 灾难性命令**（`rm -rf /`、覆写块设备、fork bomb 等）
+  —— `tools/approval_detection.py::detect_hardline_command`，在 `approval_floors.py` 里
+  于 yolo / mode=off **之前**执行；
+- **`sudo -S` 明文喂密码** —— 同上，属于前置闸门；
+- **`approvals.deny` 用户自定义黑名单** —— 默认空列表，用户自己加。
+
+这三条是「不把用户的机器搞坏」的底线，不是「审核 AI 的动作」，因此不在放宽范围内。
+
+---
+
+## 8. 交付物验证记录（v0.17.3 首发）
+
+对最终发布的 `Xinyuan-Portable-0.17.3.zip`：
+
+| 检查项 | 结果 |
+| --- | --- |
+| 全量 CRC 校验（`ZipFile.testzip()`） | 零损坏 |
+| 与构建目录清单比对 | 13,279 文件 / **0 缺失 / 0 多余 / 0 大小不符** |
+| 启动关键文件 | `Xinyuan.exe`、`app.asar`、`codicon-*.ttf`、`node-pty/.../pty.node`、`get-windows/*`、`yaml/__init__.py`、`data/skills/.bundled_manifest` 全部在位 |
+| 启动器编码 | 2030 字节 / 非 ASCII 0 / CRLF 59 / 孤立 LF 0 |
+| `README.txt` | UTF-8 BOM = True |
+| 数据目录内容 | 仅 `config.yaml` + `skills/`，无机器状态残留 |
+| 最长条目路径 | 128 字符（Windows 资源管理器 260 限制有充足余量） |
+| 绝对路径 / `..` 条目 | 无 |
+| 端到端启动 | 双击 `Start-Xinyuan.bat` → `Xinyuan backend is ready`，耗时 12.6 秒 |
+
+---
+
+## 9. 补漏（第二版）：AI 的「自我认知」漏改名
+
+### 现象
+
+界面文案已经全部改成 Xinyuan 了，但**一对话就露馅**：AI 会自称
+「Hermes Agent, built by Nous Research」，并把界面称作 "the Hermes desktop app"。
+
+### 根因
+
+第一版的改名正则只匹配**紧跟引号的** `Hermes`：
+
+```python
+re.compile(r"(['\"`])Hermes(?![A-Za-z0-9_$])")
+```
+
+它只能命中 `"Hermes"` 这种独立字符串字面量。而系统提示里写的是
+`"You are Hermes Agent, ..."` —— `Hermes` 前面是**空格**，永远匹配不到。
+于是 UI 改到位了，**发给模型的系统提示**和**首启播种的人格文件**全漏了。
+
+### 影响面
+
+| 文件 | 作用 |
+| --- | --- |
+| `agent/prompt_builder.py` | **每一轮对话**都会发给模型的系统提示 |
+| `hermes_cli/default_soul.py` | 首启播种 `data/SOUL.md` 的模板 |
+| `backend/SOUL.md` | 随包分发的人格文件 |
+
+交付包内用户可见的 `Hermes` 文案合计 **2,086 处 / 656 个文件**。
+
+### 修法
+
+用 Python `tokenize` **只对 STRING / COMMENT token** 做替换。
+这样从构造上就不可能碰到代码标识符 —— `hermes_cli`、`HERMES_HOME`、
+`hermes_state_*` 这些必须原样保留，改了应用直接崩。
+
+### 刻意**不改**的三类（关键）
+
+机械改名不只是「有风险」，而是会**改错**：
+
+| 类型 | 例子 | 为什么不能改 |
+| --- | --- | --- |
+| 模型名 | `Hermes 3` / `Hermes 4` | 这是 Nous Research 的**大模型名**，不是本 agent |
+| 搜索替换表 | `_OAUTH_SYSTEM_REPLACEMENTS` 里的 `("Hermes Agent", "Claude Code")` | 左值是**被匹配的原文**，改了 Anthropic OAuth 的伪装就失效 |
+| 等值判断 | `value == "Hermes Agent"`、`author != "Hermes Agent"` | 比较用，不是展示用 |
+
+另外三类同样保持原样：
+
+- **URL** —— `https://hermes-agent.nousresearch.com/docs`、`HTTP-Referer`，指向真实上游文档
+- **CLI 命令** —— 控制台脚本仍然是 `hermes`（`pyproject.toml` 里 `hermes = "hermes_cli.main:main"`），
+  技能里写的 `hermes config` / `hermes doctor` 都是**正确的**，不能改
+- **第三方真实页面** —— `the portal's Hermes Agent page`（Nous Portal 的页面）
+
+### 两处必须回退的改动
+
+1. **`hermes_cli/default_soul.py` 的 `_SCAFFOLD_HEAD` / `_LEGACY_TEMPLATE_SOULS`**
+   这两个常量是**用来识别**用户磁盘上旧版 `SOUL.md`（内容是 "Hermes Agent"）以便原地升级的。
+   改名会让老安装不再被识别 → 已强制保留原文，只改 `DEFAULT_SOUL_MD`。
+
+2. **`backend/skills/` 与 `backend/optional-skills/` 下的文件一律不动**
+   它们的内容哈希通过 `data/skills/.bundled_manifest` 决定 `skills_sync` 是否跳过同步。
+   改了会让清单失效，下次启动就重新全量 `copytree` 播种 —— 正是那个 **85~109 秒、
+   会撞爆桌面端 90 秒启动超时**的路径。实测：改了 → 启动直接失败。
+
+### 验证
+
+| 项 | 结果 |
+| --- | --- |
+| 改动文件语法校验（656 个 `.py`） | **0 失败** |
+| 端到端启动 | **18.0 秒** → `Xinyuan backend is ready. Finalizing desktop startup` |
+| 系统提示 | `You are Xinyuan（鑫源）, a local desktop AI assistant built on Hermes Agent by Nous Research.` |
+
+---
+
+## 10. 补漏（第三版）：f-string 与复合词仍然漏改
+
+第 9 节修掉了「界面改名了、AI 的自我认知没改」这个问题，但那个修法本身还有两个漏洞。
+**问题不是没改到，而是改名的工具悄悄跳过了整整一类代码。**
+
+### 漏在哪
+
+**（1）所有 f-string 里的文案被整类跳过。**
+
+第一版改名脚本只处理 `tokenize.STRING` 和 `tokenize.COMMENT` 两类标记。
+但 Python 3.12 起，f-string 被拆成 `FSTRING_START` / `FSTRING_MIDDLE` / `FSTRING_END` 三种标记，
+字面文本落在 `FSTRING_MIDDLE` 里 —— 不在上面两类中，于是**每一个 f-string 都被静默跳过**。
+
+漏掉的恰好是可见度最高的一批：
+
+| 位置 | 文案 |
+| --- | --- |
+| `agent/system_prompt.py` | `Active Hermes profile: ...` —— **直接进系统提示** |
+| `agent/prompt_builder.py` | 运行时环境说明（多段）—— **直接进系统提示** |
+| `agent/estop.py` | `⏸️ Hermes is paused` |
+| `agent/shell_hooks.py` | `⚠ Hermes is about to register a shell hook ...`（安全审批提示） |
+| `agent/turn_facade_lease.py` | `⏳ Still waiting for the other Hermes process ...` |
+| `gateway/run_busy.py` | `⏸️ Hermes is already paused` |
+| `tui_gateway/user_messages.py` | `session busy — Hermes is still replying.` |
+| `cli.py` / `hermes_cli/banner.py` | `Hermes Agent v...` 启动横幅 |
+
+**（2）`Hermes-managed` 这类复合词被误判成文件名。**
+
+第一版有一条「看起来像路径就跳过」的保护规则，本意是别把 `Hermes.exe`、`Hermes.app` 改掉。
+但它把 `Hermes-managed`、`Hermes-owned`、`Hermes-only` 这类**散文复合词**也一起放过了。
+
+顺带说明：这条规则当时**误打误撞**保护住了 `X-Hermes-Session-Id` 这类 HTTP 头 —— 如果当时没有它，
+网关的会话续传、定时唤醒、Webhook 签名校验会被一起改坏。第三版把它换成了显式的清单。
+
+### 改了什么
+
+第三版共 **312 处 / 180 个文件**。判断不再依赖「聪明的正则」，而是**显式形态表**：
+把代码树里出现过的每一种 `Hermes<分隔符>词` 形态逐一列出，人工判定「保留」还是「改名」。
+
+**刻意保留（改了会坏或会撒谎）：**
+
+| 保留项 | 原因 |
+| --- | --- |
+| `X-Hermes-Session-Id` / `-Key` / `-Signature-256` / `-Event` 等 | **HTTP 协议头**，两端都按字面值读写，改名即断会话续传与 Webhook 签名 |
+| `X-Title`、`User-Agent`、`HTTP-Referer`、`clientInfo`、`codex_cli_rs` | 发给模型厂商的**归属标识**，改写等于让本分支对第三方谎报身份 |
+| `Hermes 3` / `Hermes 4` / `Hermes-4` | Nous Research 的**大模型名**，不是本程序 |
+| `Hermes.exe` / `Hermes.app` / `Hermes-Setup.exe` | 卸载与迁移路径要探测的**真实文件名** |
+| `hermes-agent`、`hermes_cli`、`hermes_home`、`HERMES_*` | 上游包名 / 模块名 / 环境变量 |
+| `_OAUTH_SYSTEM_REPLACEMENTS` 的**左值** | 搜索替换表，左值是「被匹配的原文」，改了就匹配不上 |
+
+### 一处需要特别说明的连带修复
+
+`_OAUTH_SYSTEM_REPLACEMENTS` 是 Anthropic OAuth 路径上的**品牌脱敏表**：
+它把本程序自己的名字替换成 `Claude Code`，避免系统提示被服务端内容过滤拦下。
+这张表的元素**跨了多行**，而保护规则只看「标记所在的那一行」，于是第二行起的元素没被护住。
+
+结果是：脱敏表能匹配 `Xinyuan Agent`（对本分支是**对的**），但不再匹配 `Hermes Agent` ——
+而本版的人格文案里恰好有 `built on Hermes Agent by Nous Research`，这句就不再被脱敏了。
+第三版把**两个品牌名都补进表里**，新旧都能脱敏。
+
+### 工具本身的一个坑（值得记一笔）
+
+改名脚本一度**把自己改坏了**：某次误把父目录当作根目录执行，脚本改写了自己的正则字符串，
+`WORD` 里的 `Hermes` 变成 `Xinyuan`。此后它匹配的是 `Xinyuan`，替换成 `Xinyuan` ——
+**全是空操作，却照样报告「已修改 312 处」**。
+
+因此第三版脚本加了两条硬约束：**拒绝处理自身文件**；替换一律按**原始源码偏移**切片，
+不依赖 `TokenInfo.string`（f-string 的该字段是重新转义过的表示，不能拿来算偏移）。
+
+### 第三版验证
+
+| 项 | 结果 |
+| --- | --- |
+| 决策表单元测试（夹具，含 9 保留 / 9 改名） | **全部符合预期** |
+| 改动文件语法校验（180 个 `.py`） | **0 失败** |
+| 散文残留（运行时字符串 / 文档字符串 / 注释） | **0 / 0 / 0** |
+| 必须保留项复核 | `X-Hermes-Session-Id` 9 处、`X-Title` 12 处、`Hermes 3` 3 处、`hermes-agent` 177 处 —— **全部完好** |
+| 仓库测试（品牌相关 17 个文件） | 与基线同口径对照：均为 **5 失败 / 965 通过**，且失败项完全相同 → 改名引入回归 **0** |
+
+---
+
+## 11. 补漏（第四版）：桌面外壳（Electron）是一层独立的品牌文案
+
+### 漏在哪
+
+首版本地化确实顺带改过桌面外壳的一部分（README 第 3 行记的「`src/` 与 `electron/`
+下的用户可见字符串，101 个文件、212 处」就是它）。但**之后三轮补漏的工具都只遍历
+`*.py`，再没回头看这一层**，于是留下大量残留 —— 而且是**用户第一眼就能看到**的：
+
+```
+[hermes] [boot] Resolving Hermes backend
+[hermes] [boot] Waiting for Hermes backend to launch
+```
+
+这是启动时的进度条文案。此外还有错误对话框、设置页说明、OAuth 回调页、
+以及更新/卸载相关的全部提示语。
+
+需要说明的是，首版那一轮只覆盖了**一部分**：渲染层的 i18n **取值**改完了
+（`startingHermesDesktop: 'Starting Xinyuan Desktop…'`），主进程 `electron/` 基本没动，
+且两层的**散文句子**都还有大量残留。
+
+实测残留量（把每处 `Hermes` 判为「在字符串字面量内」还是「裸代码」）：
+
+| 层 | 字符串散文（需改） | 标识符（不能改） |
+| --- | --- | --- |
+| `apps/desktop/electron/`（主进程） | **110** | 101 |
+| `apps/desktop/src/`（渲染层） | **95** | 161 |
+
+### 改了什么
+
+新增工具 `js_rebrand.py`，思路与 Python 版一致，但有两个 JS 特有的点：
+
+- **只改字符串字面量内的 `Hermes`**（`'` `"` `` ` ``）。词边界必须带 `$`：
+  `(?<![A-Za-z0-9_$])Hermes(?![A-Za-z0-9_$])` —— JS 标识符允许 `$`。
+  这样 `resolveHermesHome`、`remoteHermesPath`、`HERMES_HOME`、`hermes-bots` 一律不受影响。
+- **模板串里的 `${...}` 是代码不是散文**：扫描时按花括号深度把插值区排除，
+  否则 `${remoteHermesPath}` 会被当散文改掉。这是 JS 侧对应 Python f-string 的那个坑。
+
+最终应用 **188 处 / 55 个文件**。
+
+**测试文件刻意不参与批量改名**：`*.test.ts` 里的 `Hermes` 绝大多数是合成夹具路径
+（`C:\Hermes\venv\Scripts\python.exe`），没有用户价值；夹具与断言同步改写纯属噪声。
+只有少数几个**断言了用户可见文案**的测试需要手工跟进（见下文「测试」一节）。
+
+### 同一层的另外三块：日志前缀、插件面板、更新页
+
+`js_rebrand.py` 的词边界是**大小写敏感**的，所以小写的日志前缀 `[hermes]` 它根本匹配不到 ——
+但那串字符出现在 `data/logs/desktop.log` 与「RECENT LOGS」视图的**每一行**：
+
+```
+[2026-09-17T16:45:15.418Z] [hermes] [boot] Resolving Xinyuan backend
+```
+
+改之前先确认过**没有任何正则回读它**（`tests/install/e2e-assets/known-failures.json` 的
+签名只匹配 `[updates]` 与 CLI 命令名，不匹配前缀）。改动 **17 处**：
+
+- `apps/desktop/electron/desktop-log-line.ts`（前缀定义）
+- `apps/desktop/electron/main.ts`（16 处 `console.log`）
+- `hermes_cli/main.py`（后端侧同名前缀）
+
+⚠️ 注意 `hermes_cli/update_cmd_windows.py:395` 的 `[hermes] + (["--profile", ...])`
+**看着像同一个 token，其实是 Python 列表在包变量**，不是字符串，只能改 STRING 标记内的 ——
+这正是 `patch_logprefix.py` 用 `tokenize` 而不是文本替换的原因。
+
+随包分发的其它 JS/HTML 资源（不在 `apps/desktop` 下，构建链不会覆盖它们，必须单独改）：
+
+| 文件 | 处数 | 说明 |
+| --- | --- | --- |
+| `plugins/hermes-achievements/dashboard/dist/index.js` | 8 | 成就面板标题、提示语 |
+| `plugins/kanban/dashboard/dist/index.js` | 5 | 看板面板的 profile 提示语 |
+| `plugins/platforms/photon/sidecar/index.mjs` | 2 | iMessage 适配器日志 |
+| `scripts/desktop-update/ui.html` | 7 | 更新进度页（HTML 文本节点，需整文件当散文扫） |
+| `scripts/whatsapp-bridge/bridge.js` | 1 | WhatsApp 回复前缀 `☤ *Xinyuan Agent*` |
+
+`plugins/*/dashboard/dist/` 是**构建产物**（平时 `dist` 在跳过名单里），但在这条链路里
+它就是**发布物本身**，所以用 `--allow-dist` 放行。
+
+### 刻意保留（指向上游实体，改了会产生死指针）
+
+| 保留项 | 原因 |
+| --- | --- |
+| `Hermes website` | 上游下载站。改成「Xinyuan 网站」会指向**不存在的站点** |
+| `Hermes Cloud` | 上游真实云服务（门户登录走 `hermes-agent.nousresearch.com`） |
+| `Hermes Agent page` | 上游计费门户里的真实页面 |
+| `Hosted Hermes & Nous-trained models` | 「Nous Portal」提供商的描述，这里的 Hermes 是**模型家族名** |
+| `Hermes-Setup` / `Hermes.exe` / `Hermes.app` / `Hermes.AppImage` | 上游安装器与产物**真实文件名** |
+| `X-Hermes-Session-*` / `Hermes-Agent-Outbound-Webhook` | HTTP 协议头，改了会断会话续传与 Webhook 签名 |
+| `Hermes 3` / `Hermes 4` / `Nous Research` / `hermes-agent` | 上游模型名与归属 |
+| `Hermes Kanban docs` / `Hermes Kanban documentation` | 标签指向的 href **真的是** `hermes-agent.nousresearch.com/docs/...`。改成「Xinyuan 文档」会把一个上游链接标错 |
+| Photon 侧车的 `Hermes patch:` 标记 | 不是散文：它被**写进被改写的第三方文件**再读回来做幂等判断（`if (raw.includes(MARKER)) return`）。改名会让「已打过补丁」的文件看起来没打过，被**重复打补丁** |
+| WhatsApp 的 `browser: ['Hermes Agent', 'Chrome', ...]` | **配对时交给 WhatsApp 的设备标识**（协议值，同类于上面的 Photon 标记）。改名只影响「已连接设备」里的显示名，却有让已有会话**要求重新扫码配对**的风险 —— 紧邻它的、用户真正看得到的回复前缀 `☤ *Xinyuan Agent*` 已改 |
+
+判据与前三版一致：**「本产品自称」改名，「指向上游实体」保留**。
+（同一条原则也是人格文案里保留 `built on Hermes Agent by Nous Research` 的原因。）
+本轮再补一条：**发给第三方的协议值不改** —— 它不算「本产品自称」，
+改错了是功能故障而不是文案问题。
+
+### 顺带修掉的两个功能性 bug
+
+**（1）`tools/skill_linter.py` 的元组被去重。** 首版改名把一处元组写成了：
+
+```python
+author not in ("Xinyuan Agent", "Xinyuan Agent")   # 丢了 "Hermes Agent"
+```
+
+与更早 `gateway/relay/__init__.py` 的 bug 同源，当时只修了 relay 那一处。
+后果是 `author: Hermes Agent` 的技能会被误报「应写作 Xinyuan Agent」。已修回两元素。
+
+**（2）`plugins/hermes-bots/data.ts` 的保留标签名单没跟上改名。** 内置机器人的 @标签
+现在是 `Xinyuan`，但「不允许被用作自定义标签」的保留名单里只有旧名：
+
+```javascript
+!['all', 'everyone', 'user', 'default', 'hermes'].includes(form)   // 少了 'xinyuan'
+```
+
+后果是用户可以把自己建的机器人改名成 `Xinyuan`，**劫持内置标签**。
+保留名单补上 `'xinyuan'`（`'hermes'` 一并留着，兼容老数据）。
+
+### 测试：改名引入的回归为 0
+
+这一层有件事必须先说清楚：**首版只改了源码、没改测试**，所以桌面测试套件
+**从首版起就一直是红的**。用「同口径对照」量出来（同一批文件、同一台机器、
+只切换 `apps/desktop` 的改动）：
+
+| | 失败 | 通过 |
+| --- | --- | --- |
+| 基线（改动前） | 72 | 470 |
+| 本轮改动后 | **48** | **494** |
+
+即：**修好 26 个，新增 0 个**。
+
+**为什么会红 72 个。** 两个原因，都不是本轮引入的：
+
+1. **陈旧的品牌断言（约 29 个）** —— 首版改了 `src/i18n/en.ts` 等目录里的**取值**
+   （`installLocalTitle: 'Install Xinyuan locally'`），测试里还在断言 `Install Hermes locally`。
+   这类已全部同步修正，例如 `desktop-install-overlay.test.tsx` 一次修掉 13 个。
+2. **平台不兼容（约 37 个）** —— 上游测试套件按 POSIX/macOS 写，在 Windows 上本来就跑不过：
+   `hardening.test.ts`（`chmod` 权限位与属主语义）、`ssh-connection.test.ts`（`ControlMaster` 控制套接字）、
+   `git-repo-scan.test.ts`（darwin 的媒体库排除）、`managed-ssh-update.test.ts`（`/bin/sh`）、
+   `stage-native-deps.test.mjs`（darwin 打包）。这些**刻意不动** —— 它们反映的是平台差异，不是品牌问题。
+
+**看起来像回归、实际是 flaky 的 2 个。** `git-worktree-ops.test.ts` 与
+`pool-spawn-coordinator.test.ts` 会真的 `spawn` 真 `git` 进程 / 100 个子进程，
+默认 5 秒超时在负载高时不够。用 `--testTimeout=60000` 单跑这两个文件：
+全部通过，耗时 **660 ms / 2087 ms** —— 是超时，不是逻辑错。
+
+**剩余 48 个的性质**（均已核对，不是本轮引入）：平台不兼容约 37 个；
+4 个是**首版刻意删掉的功能**的遗留测试（`onboarding/index.test.tsx` 的
+「provider Picker 展开列表 / "稍后选择"」，而 `index.tsx:566` 的注释写明这些入口是被主动移除的）；
+2 个 `voice-prefs.test.ts` 与源码注释所声明的行为不一致（与品牌无关）；
+其余是 Windows 文件占用（`EBUSY ... rmdir`）导致的清理失败。
+
+### 关于构建产物的一点说明
+
+`apps/desktop/dist/` 是 **`.gitignore` 忽略的构建产物**，所以 `git ls-files` 里查不到它 ——
+但它才是**真正被打进包里的东西**。构建链为：
+
+```
+npm run build            # vite + scripts/bundle-electron-main.mjs
+npm run builder -- --dir # → apps/desktop/release-xinyuan/win-unpacked/
+                         # → 拷进便携包的 app/
+```
+
+另外 `app.asar` 中 `/dist/**` 全部标记为 `unpacked=True`，Electron 会从
+`app.asar.unpacked/dist/` 读取真实文件，因此这些文件是可安全直接替换的。
+
+---
+
+## 12. 已知限制
+
+- 仅提供 **Windows x64** 便携包。macOS / Linux 需自行从源码构建。
+- 需要能访问 `https://yuangeluyou.com`；离线环境无法使用。
+- 便携包体积约 272 MB（含自带 Python 运行时与全部依赖），首次启动约 20~40 秒（之后更快）。
+- 本版内置 **CPython 3.14.8**。上游 `pyproject.toml` 里 45/50 个核心依赖都带
+  `python_version >= '3.14'` 标记，所以 **3.14 是本版唯一受支持的版本**，旧版的 3.11 已不再适用。
+
+---
+
+## 13. 合并上游 v0.21.7（本版重点）
+
+### 合并范围
+
+| | |
+| --- | --- |
+| 上游基线 | `2d15a72b5120`（2026-09-16） |
+| 上游目标 | `main` @ `3569e846`（2026-10-12，紧跟在 release `v0.21.7` 之后） |
+| 窗口内提交 | 约 1,737 个 |
+| 文件级差异 | 8,732 修改 / 654 删除 / 5,374 新增（相对上一版 fork） |
+
+三方合并用 `git merge-tree --write-tree -X theirs` 在无工作区条件下完成，冲突一律取上游。
+
+### 用户报的 bug：已在上游修好，本次合并自动带回
+
+有用户反馈应用偶发崩溃。定位到的崩溃栈是：
+
+```
+[renderer console:main] Uncaught TypeError: Cannot read properties of undefined
+  (reading 'startsWith') (file:///.../app.asar.unpacked/dist/assets/combo-D4qFe7_0.js:41)
+```
+
+根因在 `apps/desktop/src/lib/keybinds/combo.ts` 的 `baseKeyFromCode()`：它假定
+`KeyboardEvent.code` 一定是字符串，但 **Radix / IME 合成键盘事件会给出 `undefined`**，
+于是 `code.startsWith(...)` 抛错。
+
+上游已在 #91611 修复，本次合并把这个修复带了回来，**我们无需再打补丁**：
+
+```ts
+// event.code is typed string, but synthetic/IME keydowns can arrive without
+// one (packaged-renderer TypeError reproductions in #91611); treat a
+// non-string or empty code as "no physical key" instead of throwing.
+if (typeof code !== 'string' || !code) {
+  return null
+}
+```
+
+### 🔴 后端启动方式变了（旧包做法在新版直接失效）
+
+这是本次合并里最容易踩空的一处。上一版靠桌面端把 `backend/venv/Lib/site-packages`
+挂到 `PYTHONPATH` 上；上游这次重构了整条链路：
+
+| | 旧版 0.17.3 | 新版 0.21.7 |
+| --- | --- | --- |
+| 启动入口 | `main.ts::createPythonBackend` | `electron/source-backend.ts::createSourcePythonBackend` |
+| `PYTHONPATH` | `backend` **+** `backend/venv/Lib/site-packages` | **只有 `backend`** |
+| 依赖来源 | 随包的 `venv/Lib/site-packages`（cp311 wheel） | **解释器自带 site-packages**（或 PM install state） |
+| Python 版本 | 3.11 | **3.14** |
+
+`source-backend.ts` 的注释点明了原因 —— 继承来的 `PYTHONPATH` 可能指向另一个检出目录，
+所以上游干脆先清空再只留 `root`：
+
+```ts
+// (The scrubbed inherited value could point at another checkout.)
+env: { ...buildDesktopBackendEnv({...}), PYTHONPATH: root }
+```
+
+**本版做法**：把全部依赖装进 `runtime/python/Lib/site-packages`（解释器自带目录），
+`PYTHONPATH` 只留 `backend`。这样能成立的关键在 `pm/environments.py::activate_dependencies()`：
+
+```python
+state = install_state_dir(project_root)
+if state.is_dir():          # 便携包不带 PM install state → False，走 else
+    ...
+# else 分支：payload_venv 为 None → _require_own_dependencies()
+def _require_own_dependencies(project_root):
+    if sys.prefix != sys.base_prefix:      # 便携包不是 venv → 条件不成立
+        return
+    if Path(sys.base_prefix).resolve().is_relative_to(store_root(project_root).resolve()):
+        raise RuntimeError("no dependency environment is committed for this install")
+    # → 直接返回，什么都不做，保留解释器自带的包
+```
+
+即 **便携包的布局恰好命中「什么都不做」那条分支**，`pydantic_core` 等 C 扩展从自身
+site-packages 正常导入。
+
+另外 `backend/` 下**不能有 `.git`**：`hermes_cli/venv_sync.py::prepare_launch()` 的第一个
+early-out 就是 `or not (root / ".git").exists()` —— 没有 `.git` 就直接返回，永远不会触发联网同步。
+
+### 依赖与 Python 版本
+
+- `pyproject.toml` 里 **45/50** 个核心依赖带 `python_version >= '3.14'` 标记，
+  所以在 3.11 上解析出来的依赖集是**空的** —— 3.14 是唯一可用版本。
+- 依赖清单由 `uv export --format requirements-txt --no-hashes --no-emit-project`
+  从上游 `uv.lock` 导出（204 行，全部精确 pin），再用 `uv pip install` 装进解释器
+  site-packages，共 **77 个 `*.dist-info`**。
+- **YAML 库换了**：上游把 PyYAML 换成 `ruamel.yaml==0.18.16`，全树已无 `import yaml`
+  （`hermes_yaml.py` 用的是 `from ruamel.yaml import YAML`）。旧包里的
+  `site-packages/yaml/` 在新版是**多余的**。
+- `tirith` 命令扫描器已从产品中移除（`hermes_cli/config_migrations.py::_RETIRED_TIRITH_KEYS`），
+  所以 `security.tirith_*` 四个键不再写入 `config.yaml`。
+
+### 合并正确性验证（推送前的三层闸门）
+
+| 检查 | 结果 |
+| --- | --- |
+| 654 个删除是否都是上游删的 | 654/654 都是上游删除；**fork 自有文件被误删 0 个；上游仍保留却被我们删掉的 0 个** |
+| 上游 `main` 有、我们没有的文件 | 36 个，**全部在上一版 fork 里本就不存在**（即我们从未删过它们） |
+| 我们独有的文件 | 6 个：`CHANGES.zh-CN.md`、`README.upstream.md`、`intro-mark.png`、`xinyuan-settings.tsx`、`xinyuan-form.tsx`、`codicon.ttf` |
+| 相对上游的改动逐行分类 | **8,521 处纯品牌替换**；其余全部落在「被移除文件的整份内容」「中文 README / CHANGES 重写」「品牌资源（SVG / 字体 / i18n）」三类里，逐条核对后**无夹带的意外改动** |
+
+### 交付物验证记录（v0.21.7）
+
+| 检查项 | 结果 |
+| --- | --- |
+| 全量 CRC 校验（`ZipFile.testzip()`） | 零损坏 |
+| 与构建目录清单比对 | 15,493 文件 / **0 缺失 / 0 多余 / 0 大小不符** |
+| **真实解压后启动**（解压到 `Por table 中文目录\Xinyuan`，路径同时含空格与中文） | 解压 17,429 条目零尺寸差异；三个存在性守卫通过；`import hermes_bootstrap; import hermes_yaml; import dotenv; import hermes_cli.config` 全部成功；后端启动并输出 `HERMES_BACKEND_READY` |
+| 启动器编码 | 2030 字节 / 非 ASCII 0 / CRLF 59 |
+| `README.txt` | UTF-8 BOM = True |
+| 数据目录内容 | 仅 `config.yaml` + `skills/`，无机器状态残留 |
+| 最长条目路径 | 130 字符（Windows 资源管理器 260 限制有充足余量） |
+| 绝对路径 / `..` 条目 | 无 |
+| TypeScript 类型检查 | 6 个 workspace 全部 0 错误 |
+| 桌面端测试 | `tests/desktop` 24/24 通过 |
+
+### 一处**已知的**本地化差异（非缺陷）
+
+`package-lock.json` 里的 `resolved` URL 指向 `registry.npmmirror.com`（国内镜像）而不是
+`registry.npmjs.org`。这是上一版打包时本机 npm 镜像配置留下的，**上一版就已如此**，
+本版沿用未做改动 —— 不影响功能，只是 `npm ci` 会走镜像源。

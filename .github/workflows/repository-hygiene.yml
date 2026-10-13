@@ -1,0 +1,46 @@
+name: Repository hygiene
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-hygiene:
+    name: Check source-only snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v7.0.1
+      - name: Reject private env files and generated artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, subprocess, sys
+          paths = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
+          bad = []
+          for path in filter(None, paths):
+              parts = path.split('/')
+              name = parts[-1]
+              if name.startswith('.env') and name != '.env.example':
+                  bad.append(f'private environment file: {path}')
+              if any(part in {'node_modules', '.venv', 'venv', '.cache', '__pycache__', '.pytest_cache'} for part in parts):
+                  bad.append(f'dependency/cache artifact: {path}')
+              if path.lower().endswith('.appimage'):
+                  bad.append(f'packaged AppImage: {path}')
+              try:
+                  if not os.path.islink(path) and os.path.getsize(path) >= 95 * 1024 * 1024:
+                      bad.append(f'file near GitHub 100 MB limit: {path}')
+              except OSError:
+                  pass
+          if bad:
+              print('\n'.join(bad), file=sys.stderr)
+              sys.exit(1)
+          print('Source-only snapshot checks passed.')
+          PY
