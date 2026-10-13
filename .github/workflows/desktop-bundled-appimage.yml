@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     cache-mode: write
+    env:
+      npm_config_replace_registry_host: always # map lockfile mirror hosts; integrity checks remain enabled
     steps:
       - name: Check out the exact source commit
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v7.0.1
@@ -94,7 +96,6 @@ jobs:
         shell: bash
         env:
           PYTHONUTF8: '1'
-          npm_config_replace_registry_host: always # map lockfile mirror hosts to the configured registry; integrity checks remain enabled
         run: |
           set -euo pipefail
           python3 scripts/bundles/desktop.py --commit "$GITHUB_SHA" --variant bundled --prepare-only \
