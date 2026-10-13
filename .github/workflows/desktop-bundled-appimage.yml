@@ -1,0 +1,136 @@
+name: Bundled Linux AppImage
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bundled-linux-appimage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build bundled Linux AppImage (x64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    cache-mode: write
+    steps:
+      - name: Check out the exact source commit
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up the locked toolchain and npm download cache
+        uses: ./.github/actions/setup-pm
+        with:
+          toolchain: all
+          cache-python: true
+          cache-node: true
+          node-cache-dependency-path: package-lock.json
+
+      - name: Resolve the pinned electron-builder version
+        id: electron-tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p 'require("./package-lock.json").packages["node_modules/electron-builder"].version')"
+          test -n "$version"
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+
+      - name: Restore electron-builder downloads
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ github.workspace }}/.cache/electron-builder
+          key: eb3-${{ runner.os }}-${{ runner.arch }}-builder-${{ steps.electron-tools.outputs.version }}
+          restore-keys: |
+            eb3-${{ runner.os }}-${{ runner.arch }}-builder-
+            eb3-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Restore reusable desktop dependency inputs
+        id: desktop-cache
+        uses: ./.github/actions/desktop-build-cache
+        with:
+          phase: restore
+          source: ${{ github.workspace }}
+          work: ${{ runner.temp }}/desktop-job
+          cache: ${{ github.workspace }}/.cache/desktop-inputs
+          producer: desktop
+
+      - name: Prepare the complete bundled desktop payload
+        id: prepare
+        shell: bash
+        env:
+          PYTHONUTF8: '1'
+        run: |
+          set -euo pipefail
+          python3 scripts/bundles/desktop.py --commit "$GITHUB_SHA" --variant bundled --prepare-only \
+            --work "$RUNNER_TEMP/desktop-job" --cache "$GITHUB_WORKSPACE/.cache/desktop-inputs"
+          python3 -m scripts.ci.desktop_commands "$RUNNER_TEMP/desktop-job/prepared.json"
+
+      - name: Save reusable desktop dependency inputs
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        uses: ./.github/actions/desktop-build-cache
+        with:
+          phase: save
+          source: ${{ github.workspace }}
+          work: ${{ runner.temp }}/desktop-job
+          cache: ${{ github.workspace }}/.cache/desktop-inputs
+          producer: desktop
+          key: ${{ steps.desktop-cache.outputs.cache-key }}
+
+      - name: Build the bundled Linux AppImage
+        id: build
+        shell: bash
+        env:
+          PYTHONUTF8: '1'
+        run: |
+          set -euo pipefail
+          python3 scripts/bundles/desktop.py --prepared "$RUNNER_TEMP/desktop-job/prepared.json" --variant bundled
+
+      - name: Save electron-builder downloads
+        if: ${{ success() }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ github.workspace }}/.cache/electron-builder
+          key: eb3-${{ runner.os }}-${{ runner.arch }}-builder-${{ steps.electron-tools.outputs.version }}
+
+      - name: Validate and name the AppImage
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "x86_64"
+          shopt -s nullglob
+          appimages=(apps/desktop/release/*.AppImage)
+          if [ "${#appimages[@]}" -ne 1 ]; then
+            printf 'Expected exactly one AppImage; found %s\n' "${#appimages[@]}" >&2
+            printf '%s\n' "${appimages[@]}" >&2
+            exit 1
+          fi
+          artifact="$RUNNER_TEMP/xinyuan-bundled-linux-x64-${GITHUB_SHA}.AppImage"
+          cp -- "${appimages[0]}" "$artifact"
+          chmod u+x "$artifact"
+          size="$(stat -c '%s' "$artifact")"
+          sha256="$(sha256sum "$artifact" | cut -d' ' -f1)"
+          {
+            printf 'artifact=%s\n' "$artifact" >> "$GITHUB_OUTPUT"
+            printf 'size=%s\n' "$size" >> "$GITHUB_OUTPUT"
+            printf 'sha256=%s\n' "$sha256" >> "$GITHUB_OUTPUT"
+            printf '\n### Bundled Linux AppImage\n\n'
+            printf -- '- Commit: `%s`\n- Architecture: `linux-x64`\n- Size: `%s` bytes\n- SHA-256: `%s`\n' "$GITHUB_SHA" "$size" "$sha256"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the AppImage as a short-lived Actions artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          # With archive:false, the single file itself is the artifact; its filename carries commit and architecture.
+          path: ${{ steps.artifact.outputs.artifact }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 7

@@ -1,6 +1,6 @@
 name: Canary Release
 
-# Automatic canaries are daily: the schedule caps new tags at one per 24h.
+# In this private snapshot, canary builds are manual-only; no daily schedule runs.
 # With no new commits, release.py resumes an existing unpublished canary until
 # its protected head is live; only a published canary makes a quiet day a no-op.
 # workflow_dispatch fires one on demand at any time.
@@ -12,8 +12,6 @@ name: Canary Release
 # conclusion=failure is a canary failure signal.
 
 on:
-  schedule:
-    - cron: "41 6 * * *" # daily, 06:41 UTC
   workflow_dispatch:
 
 permissions:
