@@ -2,9 +2,12 @@ import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const GUARDIAN_VERSION = 1
+const GUARDIAN_VERSION = 2
 const AUTOSTART_MARKER = 'X-Mickvvw-Guardian=true'
 const HEARTBEAT_FRESH_MS = 45_000
+const SUPERVISOR_STARTUP_TIMEOUT_MS = 30_000
+const SUPERVISOR_RESTART_DELAYS_MS = [2_000, 5_000, 15_000, 30_000, 60_000] as const
+const DIAGNOSTIC_LOG_LIMIT_BYTES = 256 * 1024
 
 const GUI_ENV_KEYS = [
   'DISPLAY',
@@ -192,6 +195,10 @@ function safeEnvironment(options: GuardianOptions, runtime: BundledRuntime): Rec
     if (inherited[key]) {env[key] = inherited[key] as string}
   }
 
+  const libraryPath = inherited.LD_LIBRARY_PATH ?? process.env.LD_LIBRARY_PATH
+
+  if (libraryPath) {env.LD_LIBRARY_PATH = libraryPath}
+
   return env
 }
 
@@ -239,12 +246,78 @@ export function createGuardianManager(options: GuardianOptions) {
   const userStopPath = path.join(guardDir, 'user-stop')
   const configHome = options.environment?.XDG_CONFIG_HOME || process.env.XDG_CONFIG_HOME || path.join(options.home, '.config')
   const autostartPath = path.join(configHome, 'autostart', 'mickvvw-guardian.desktop')
+  const diagnosticsPath = path.join(guardDir, 'diagnostics.jsonl')
   let managerError: string | null = null
+  let supervisorRestartTimer: NodeJS.Timeout | null = null
+  let supervisorStartupTimer: NodeJS.Timeout | null = null
+  let supervisorRestartAttempt = 0
+  let stoppingForUser = false
 
   function readEnabled(): boolean {
     const saved = readJson(configPath)
 
     return typeof saved?.enabled === 'boolean' ? saved.enabled : true
+  }
+
+  function writeDiagnostic(event: string, details: Record<string, string | number | null> = {}): void {
+    try {
+      fs.mkdirSync(guardDir, { recursive: true, mode: 0o700 })
+
+      if (fs.existsSync(diagnosticsPath) && fs.statSync(diagnosticsPath).size >= DIAGNOSTIC_LOG_LIMIT_BYTES) {
+        fs.writeFileSync(diagnosticsPath, '', { encoding: 'utf8', mode: 0o600 })
+      }
+
+      fs.appendFileSync(
+        diagnosticsPath,
+        `${JSON.stringify({ at: new Date().toISOString(), event, ...details })}\n`,
+        { encoding: 'utf8', mode: 0o600 }
+      )
+      fs.chmodSync(diagnosticsPath, 0o600)
+    } catch {
+      // Diagnostics must never prevent the desktop app or supervisor from running.
+    }
+  }
+
+  function clearSupervisorTimers(): void {
+    if (supervisorStartupTimer) {
+      clearTimeout(supervisorStartupTimer)
+      supervisorStartupTimer = null
+    }
+
+    if (supervisorRestartTimer) {
+      clearTimeout(supervisorRestartTimer)
+      supervisorRestartTimer = null
+    }
+  }
+
+  function hasFreshSupervisorHeartbeat(): boolean {
+    const status = readJson(statusPath)
+
+    if (
+      !status || status.version !== GUARDIAN_VERSION || status.supervisorRunning !== true ||
+      !processIdentityAlive(status.supervisorPid, status.supervisorStartTime)
+    ) {
+      return false
+    }
+
+    const heartbeatTime = Date.parse(String(status.heartbeatAt || ''))
+
+    return Number.isFinite(heartbeatTime) && Date.now() - heartbeatTime <= HEARTBEAT_FRESH_MS
+  }
+
+  function scheduleSupervisorRestart(reason: string): void {
+    if (!supported || stoppingForUser || !readEnabled() || fs.existsSync(userStopPath) || supervisorRestartTimer) {return}
+
+    const attempt = supervisorRestartAttempt + 1
+    const delayMs = SUPERVISOR_RESTART_DELAYS_MS[Math.min(attempt - 1, SUPERVISOR_RESTART_DELAYS_MS.length - 1)]
+    supervisorRestartAttempt = attempt
+    writeDiagnostic('supervisor_retry_scheduled', { reason, attempt, delayMs })
+    supervisorRestartTimer = setTimeout(() => {
+      supervisorRestartTimer = null
+
+      if (!stoppingForUser && readEnabled() && !fs.existsSync(userStopPath)) {spawnSupervisor()}
+    }, delayMs)
+    supervisorRestartTimer.unref()
   }
 
   function buildConfig(enabled: boolean): StoredConfig | null {
@@ -339,6 +412,8 @@ export function createGuardianManager(options: GuardianOptions) {
 
   function stopForUser(): void {
     if (!supported) {return}
+    stoppingForUser = true
+    clearSupervisorTimers()
 
     try {
       atomicWrite(userStopPath, `${Date.now()}\n`, 0o600)
@@ -372,6 +447,10 @@ export function createGuardianManager(options: GuardianOptions) {
         PYTHONUTF8: '1'
       }
 
+      const libraryPath = options.environment?.LD_LIBRARY_PATH ?? process.env.LD_LIBRARY_PATH
+
+      if (libraryPath) {env.LD_LIBRARY_PATH = libraryPath}
+
       for (const key of GUI_ENV_KEYS) {
         const value = options.environment?.[key] ?? process.env[key]
 
@@ -391,12 +470,67 @@ export function createGuardianManager(options: GuardianOptions) {
         env
       })
 
-      child.once('error', () => { managerError = 'supervisor_start_failed' })
+      child.once('spawn', () => {
+        writeDiagnostic('supervisor_spawned', { pid: child.pid ?? null })
+        supervisorStartupTimer = setTimeout(() => {
+          supervisorStartupTimer = null
+
+          if (stoppingForUser || !readEnabled() || fs.existsSync(userStopPath) || hasFreshSupervisorHeartbeat()) {return}
+
+          managerError = 'supervisor_startup_timeout'
+          writeDiagnostic('supervisor_startup_timeout', { pid: child.pid ?? null })
+
+          try {
+            child.kill('SIGTERM')
+          } catch {
+            // The child may have exited between the heartbeat check and signal.
+          }
+
+          scheduleSupervisorRestart('startup_timeout')
+        }, SUPERVISOR_STARTUP_TIMEOUT_MS)
+        supervisorStartupTimer.unref()
+      })
+      child.once('error', error => {
+        if (supervisorStartupTimer) {
+          clearTimeout(supervisorStartupTimer)
+          supervisorStartupTimer = null
+        }
+
+        const systemError = error as NodeJS.ErrnoException
+
+        managerError = 'supervisor_start_failed'
+        writeDiagnostic('supervisor_spawn_error', {
+          code: typeof systemError.code === 'string' ? systemError.code : null,
+          errno: typeof systemError.errno === 'number' ? systemError.errno : null,
+          syscall: typeof systemError.syscall === 'string' ? systemError.syscall : null
+        })
+        scheduleSupervisorRestart('spawn_error')
+      })
+      child.once('exit', (code, signal) => {
+        if (supervisorStartupTimer) {
+          clearTimeout(supervisorStartupTimer)
+          supervisorStartupTimer = null
+        }
+
+        if (stoppingForUser || !readEnabled() || fs.existsSync(userStopPath) || hasFreshSupervisorHeartbeat()) {return}
+
+        managerError = 'supervisor_exited_before_ready'
+        writeDiagnostic('supervisor_exit_before_ready', { pid: child.pid ?? null, exitCode: code, signal })
+        scheduleSupervisorRestart('exit_before_ready')
+      })
       child.unref()
 
       return true
-    } catch {
+    } catch (error) {
+      const systemError = error as NodeJS.ErrnoException
+
       managerError = 'supervisor_start_failed'
+      writeDiagnostic('supervisor_spawn_throw', {
+        code: typeof systemError?.code === 'string' ? systemError.code : null,
+        errno: typeof systemError?.errno === 'number' ? systemError.errno : null,
+        syscall: typeof systemError?.syscall === 'string' ? systemError.syscall : null
+      })
+      scheduleSupervisorRestart('spawn_throw')
 
       return false
     }
@@ -412,6 +546,17 @@ export function createGuardianManager(options: GuardianOptions) {
     const heartbeatTime = heartbeatAt ? Date.parse(heartbeatAt) : NaN
     const heartbeatFresh = Number.isFinite(heartbeatTime) && Date.now() - heartbeatTime <= HEARTBEAT_FRESH_MS
     const appRunning = Boolean(raw && processIdentityAlive(raw.appPid, raw.appStartTime))
+
+    if (supervisorAlive && heartbeatFresh && raw?.version === GUARDIAN_VERSION && raw?.supervisorRunning === true) {
+      if (supervisorStartupTimer) {
+        clearTimeout(supervisorStartupTimer)
+        supervisorStartupTimer = null
+      }
+
+      supervisorRestartAttempt = 0
+
+      if (managerError?.startsWith('supervisor_')) {managerError = null}
+    }
 
     const gatewayState = supervisorAlive && heartbeatFresh && typeof raw?.gatewayState === 'string' && [
       'running', 'starting', 'recovering', 'stopped_by_user', 'unavailable', 'not_managed'
@@ -437,6 +582,7 @@ export function createGuardianManager(options: GuardianOptions) {
 
   async function initialize(): Promise<GuardianStatus> {
     if (!supported) {return getStatus()}
+    clearSupervisorTimers()
 
     try {
       fs.unlinkSync(userStopPath)
@@ -452,6 +598,7 @@ export function createGuardianManager(options: GuardianOptions) {
       installAutostart()
       spawnSupervisor()
     } else {
+      clearSupervisorTimers()
       removeAutostart()
       terminateSupervisor()
     }
@@ -466,8 +613,10 @@ export function createGuardianManager(options: GuardianOptions) {
     managerError = null
 
     if (!writeConfig(enabled)) {return getStatus()}
+    clearSupervisorTimers()
 
     if (enabled) {
+      supervisorRestartAttempt = 0
       installAutostart()
       spawnSupervisor()
     } else {

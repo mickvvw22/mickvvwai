@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-GUARDIAN_VERSION = 1
+GUARDIAN_VERSION = 2
 DEFAULT_INTERVAL_SECONDS = 15
 MAX_RESTART_BACKOFF_SECONDS = 60
 _STOP_REQUESTED = False
@@ -255,6 +255,11 @@ def run(config_path: Path) -> int:
             } if isinstance(environment_raw, dict) else {}
             environment.setdefault("HOME", str(Path.home()))
             environment.setdefault("PATH", "/usr/local/bin:/usr/bin:/bin")
+
+            # Publish the supervisor heartbeat before process checks/imports so
+            # the UI can distinguish a live Guardian from one that never started.
+            gateway_state = "starting" if isinstance(config.get("gateway"), dict) else "not_managed"
+            write_status(config, running=True, error=last_error)
 
             app_spec = config.get("app")
             configured_pid = app_spec.get("pid") if isinstance(app_spec, dict) else None
