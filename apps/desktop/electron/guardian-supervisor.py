@@ -361,9 +361,9 @@ def run(config_path: Path) -> int:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 2:
+    if len(argv) != 1:
         return 2
-    return run(Path(argv[1]))
+    return run(Path(argv[0]))
 
 
 if __name__ == "__main__":
