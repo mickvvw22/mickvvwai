@@ -45,11 +45,34 @@ export function ReasoningPill({ disabled, model }: { disabled: boolean; model: C
   }
 
   const effort = reasoningEffort || defaultEffort || DEFAULT_REASONING_EFFORT
-  // A clamped pick (`ultra` → `max`) keeps the pill compact ("Ultra→Max") and
-  // spells out the CLI's wording in the tooltip, so Ultra is never shown as a
-  // distinct wire level the route does not have (#61634).
+  // Localize the compact pill as well as the menu; a clamped pick still shows
+  // both the chosen level and the level sent on this route.
   const clamp = reasoningEffortClamp(effort, reasoningEffortWire)
-  const label = reasoningEffortLabel(effort, reasoningEffortWire)
+  const localizeEffort = (value: string): string => {
+    switch (value.toLowerCase()) {
+      case 'none':
+        return copy.none
+      case 'minimal':
+        return copy.minimal
+      case 'low':
+        return copy.low
+      case 'medium':
+        return copy.medium
+      case 'high':
+        return copy.high
+      case 'xhigh':
+        return copy.xhigh
+      case 'max':
+        return copy.max
+      case 'ultra':
+        return copy.ultra
+      default:
+        return reasoningEffortLabel(value)
+    }
+  }
+  const label = clamp
+    ? `${localizeEffort(clamp.effort)}→${localizeEffort(clamp.wire)}`
+    : localizeEffort(effort)
 
   // Until the session reports its own effort, the profile default is a guess
   // about to be replaced (#79807). Show the model pill's quiet loader instead.

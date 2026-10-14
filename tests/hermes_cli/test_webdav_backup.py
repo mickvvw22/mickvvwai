@@ -133,3 +133,70 @@ def test_webdav_rejects_plain_http_to_public_host(monkeypatch):
     )
     with pytest.raises(WebDAVError, match="private or local"):
         WebDAVClient("http://public.example/dav")
+
+
+def test_full_encrypted_backup_restores_settings_and_secret_files(tmp_path: Path, capsys):
+    import zipfile
+    from types import SimpleNamespace
+
+    from hermes_cli.backup import run_backup
+
+    home = tmp_path / "hermes-home"
+    home.mkdir()
+    secret_values = (
+        "cloud-api-key-for-backup-test",
+        "oauth-refresh-token-for-backup-test",
+        "vault-master-key-for-backup-test",
+    )
+    (home / "config.yaml").write_text(f"model:\n  api_key: {secret_values[0]}\n", encoding="utf-8")
+    (home / ".env").write_text(f"OPENAI_API_KEY={secret_values[0]}\n", encoding="utf-8")
+    (home / "auth.json").write_text(f'{{"refresh_token":"{secret_values[1]}"}}\n', encoding="utf-8")
+    (home / "vault.key").write_bytes(secret_values[2].encode("utf-8"))
+
+    archive = tmp_path / "backup.zip"
+    assert run_backup(SimpleNamespace(output=str(archive), hermes_home=str(home), keep=0)) is True
+    output = capsys.readouterr().out
+    assert all(secret not in output for secret in secret_values)
+
+    encrypted = tmp_path / "backup.hbackup"
+    encrypt_file(archive, encrypted, "recovery passphrase with 24 chars")
+    ciphertext = encrypted.read_bytes()
+    assert all(secret.encode("utf-8") not in ciphertext for secret in secret_values)
+
+    restored = tmp_path / "restored.zip"
+    decrypt_file(encrypted, restored, "recovery passphrase with 24 chars")
+    with zipfile.ZipFile(restored) as backup_zip:
+        names = set(backup_zip.namelist())
+        assert {"config.yaml", ".env", "auth.json", "vault.key"} <= names
+        assert secret_values[0] in backup_zip.read("config.yaml").decode("utf-8")
+        assert secret_values[1] in backup_zip.read("auth.json").decode("utf-8")
+        assert backup_zip.read("vault.key") == secret_values[2].encode("utf-8")
+
+
+@pytest.mark.platforms("linux")
+def test_webdav_work_directory_is_private_and_ram_backed():
+    import stat
+
+    from hermes_cli.web_routers.webdav_backup import _ram_backed_temp_root, _secure_work_directory
+
+    ram_root = _ram_backed_temp_root()
+    assert ram_root is not None
+    with _secure_work_directory("hermes-webdav-test-") as temp_dir:
+        work_dir = Path(temp_dir)
+        assert work_dir.resolve().is_relative_to(ram_root.resolve())
+        assert stat.S_IMODE(work_dir.stat().st_mode) == 0o700
+
+
+def test_webdav_restore_does_not_start_gateway_service(tmp_path: Path, monkeypatch):
+    from hermes_cli.web_routers import webdav_backup
+
+    calls = []
+
+    def fake_import(args):
+        calls.append(args)
+        return 0
+
+    monkeypatch.setattr(webdav_backup, "run_import", fake_import)
+    assert webdav_backup._run_import(tmp_path / "restore.zip") == 0
+    assert len(calls) == 1
+    assert calls[0].start_gateway_after_import is False

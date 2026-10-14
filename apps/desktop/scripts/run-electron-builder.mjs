@@ -58,6 +58,18 @@ export function validatePreparedBuilderArgs(args, inputs) {
       if (args[++index] !== 'never') throw new Error('Publishing belongs to the release adapter')
       continue
     }
+    if (arg === '--prepackaged' || arg.startsWith('--prepackaged=')) {
+      const value = arg === '--prepackaged' ? args[++index] : arg.slice('--prepackaged='.length)
+      if (!value || value.startsWith('-')) throw new Error('--prepackaged requires a path')
+      let details
+      try {
+        details = fs.statSync(path.resolve(value))
+      } catch {
+        throw new Error(`--prepackaged path does not exist: ${value}`)
+      }
+      if (!details.isDirectory()) throw new Error(`--prepackaged must be a directory: ${value}`)
+      continue
+    }
     if (arg === '--dir' || arg === '--publish=never' || arg === '--') continue
     if (/^(?:-c|--config)\.(?:extraMetadata\.(?:version|shortVersion|shortVersionWindows)|directories\.output|mac\.identity)=/.test(arg)) continue
     if (!arg.startsWith('-') && inputs.formats.includes(arg)) continue

@@ -1,9 +1,10 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render as renderBase, screen, waitFor, within } from '@testing-library/react'
 import { atom } from 'nanostores'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ConfirmHost } from '@/components/confirm-host'
+import { I18nProvider } from '@/i18n'
 import { $confirmRequest } from '@/store/confirm'
 import type { EnvVarInfo, OAuthProvider } from '@/types/hermes'
 
@@ -45,6 +46,11 @@ vi.mock('@/store/onboarding', () => ({
 const { ProvidersSettings } = await import('./providers-settings')
 const { $settingsScopeOverride } = await import('@/store/settings-scope')
 const { $activeGatewayProfile, $profiles } = await import('@/store/profile')
+const { $localModelsEnabled } = await import('@/store/local-models-flag')
+
+function render(ui: Parameters<typeof renderBase>[0]) {
+  return renderBase(<I18nProvider configClient={null} initialLocale="en">{ui}</I18nProvider>)
+}
 
 function provider(id: string, loggedIn: boolean, patch: Partial<OAuthProvider> = {}): OAuthProvider {
   return {
@@ -100,12 +106,12 @@ afterEach(() => {
 
 // Removal goes through confirm() from @/store/confirm, so the host has to be
 // mounted for the prompt to render — same as in the real app shell.
-async function renderProvidersSettings() {
+async function renderProvidersSettings(view: 'accounts' | 'keys' = 'accounts') {
   let result: ReturnType<typeof render>
   await act(async () => {
     result = render(
       <>
-        <ProvidersSettings onClose={vi.fn()} onViewChange={vi.fn()} view="accounts" />
+        <ProvidersSettings onClose={vi.fn()} onViewChange={vi.fn()} view={view} />
         <ConfirmHost />
       </>
     )
@@ -455,12 +461,31 @@ describe('ProvidersSettings', () => {
     getEnvVars.mockResolvedValue({})
     listOAuthProviders.mockResolvedValue({ providers: [] })
 
-    render(<ProvidersSettings onClose={vi.fn()} onViewChange={vi.fn()} view="keys" />)
+    await renderProvidersSettings('keys')
 
     const row = await screen.findByText('Local / custom endpoint')
 
     fireEvent.click(row)
 
     await waitFor(() => expect(startManualLocalEndpoint).toHaveBeenCalledWith(null))
+  })
+
+  it('places the custom endpoint shortcut above local models in Accounts', async () => {
+    getEnvVars.mockResolvedValue({})
+    listOAuthProviders.mockResolvedValue({ providers: [provider('nous', true)] })
+    $localModelsEnabled.set(true)
+
+    try {
+      await renderProvidersSettings()
+
+      const endpoint = await screen.findByText(/Local \/ custom endpoint|本地 \/ 自定义端点/)
+      const localModels = screen.getByText(/Run models locally|本地运行模型/)
+      expect(endpoint.compareDocumentPosition(localModels) & 4).toBeTruthy()
+
+      fireEvent.click(endpoint)
+      await waitFor(() => expect(startManualLocalEndpoint).toHaveBeenCalledWith(null))
+    } finally {
+      $localModelsEnabled.set(false)
+    }
   })
 })

@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import secrets
+import sys
 import tempfile
 import zipfile
 from datetime import UTC, datetime
@@ -51,6 +52,51 @@ def _timestamp() -> str:
     return datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
+def _ram_backed_temp_root() -> Optional[Path]:
+    """Return a verified Linux tmpfs mount; never fall back to an ordinary disk temp directory."""
+    if not sys.platform.startswith("linux"):
+        return None
+    candidate = Path("/dev/shm")
+    try:
+        if candidate.is_symlink() or not candidate.is_dir():
+            return None
+        resolved = candidate.resolve(strict=True)
+        for line in Path("/proc/self/mountinfo").read_text(encoding="utf-8").splitlines():
+            before, separator, after = line.partition(" - ")
+            fields = before.split()
+            filesystem = after.split(maxsplit=1)
+            if not separator or len(fields) < 5 or not filesystem or filesystem[0] != "tmpfs":
+                continue
+            mount_point = fields[4]
+            for escaped, value in (("\\040", " "), ("\\011", "\t"), ("\\012", "\n"), ("\\134", "\\")):
+                mount_point = mount_point.replace(escaped, value)
+            if Path(mount_point).resolve() == resolved:
+                return resolved
+    except (OSError, ValueError, IndexError):
+        return None
+    return None
+
+
+def _secure_work_directory(prefix: str):
+    """Create private temporary work only on a verified RAM-backed filesystem."""
+    temp_root = _ram_backed_temp_root()
+    if temp_root is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Encrypted WebDAV backup and restore require a verified RAM-backed temporary filesystem. "
+                "No backup data was processed; ordinary disk storage is not used as a fallback."
+            ),
+        )
+    try:
+        return tempfile.TemporaryDirectory(prefix=prefix, dir=str(temp_root))
+    except OSError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="The RAM-backed temporary filesystem is unavailable or out of space; no backup data was processed.",
+        ) from exc
+
+
 def _run_backup(home: Path, archive: Path) -> None:
     try:
         complete = run_backup(SimpleNamespace(output=str(archive), hermes_home=str(home), keep=0))
@@ -69,7 +115,7 @@ def _run_backup(home: Path, archive: Path) -> None:
 
 def _run_import(archive: Path) -> int | None:
     try:
-        return run_import(SimpleNamespace(zipfile=str(archive), force=True))
+        return run_import(SimpleNamespace(zipfile=str(archive), force=True, start_gateway_after_import=False))
     except SystemExit as exc:
         return int(exc.code) if isinstance(exc.code, int) else 1
 
@@ -102,7 +148,7 @@ async def create_webdav_backup(body: WebDAVBackupRequest, profile: Optional[str]
             home = Path(get_hermes_home()).expanduser().resolve()
             stamp = _timestamp()
             filename = f"hermes-cloud-backup-{stamp}-{secrets.token_hex(4)}.hbackup"
-            with tempfile.TemporaryDirectory(prefix="hermes-webdav-backup-") as temp_dir:
+            with _secure_work_directory(prefix="hermes-webdav-backup-") as temp_dir:
                 work = Path(temp_dir)
                 archive = work / "backup.zip"
                 encrypted = work / filename
@@ -133,7 +179,7 @@ async def restore_webdav_backup(body: WebDAVRestoreRequest, profile: Optional[st
 
         def _download_and_restore() -> dict:
             home = Path(get_hermes_home()).expanduser().resolve()
-            with tempfile.TemporaryDirectory(prefix="hermes-webdav-restore-") as temp_dir:
+            with _secure_work_directory(prefix="hermes-webdav-restore-") as temp_dir:
                 work = Path(temp_dir)
                 encrypted = work / "remote.hbackup"
                 archive = work / "restore.zip"

@@ -30,6 +30,20 @@ test('backend env scrubs PYTHONPATH and PYTHONHOME', () => {
   assert.equal(env.PYTHONHOME, '')
 })
 
+test('backend env preserves the selected Telegram storage root and install-location marker', () => {
+  const env = buildDesktopBackendEnv({
+    currentEnv: {
+      PATH: '/usr/bin:/bin',
+      HERMES_TELEGRAM_FILES_ROOT: '/Users/test/Mickvvw-data/telegram_files',
+      HERMES_TELEGRAM_FILES_INSTALL_DIR: '1'
+    },
+    platform: 'darwin'
+  })
+
+  assert.equal(env.HERMES_TELEGRAM_FILES_ROOT, '/Users/test/Mickvvw-data/telegram_files')
+  assert.equal(env.HERMES_TELEGRAM_FILES_INSTALL_DIR, '1')
+})
+
 test('POSIX backend PATH keeps the inherited PATH first and appends missing sane entries', () => {
   const env = buildDesktopBackendEnv({
     currentEnv: { PATH: '/opt/homebrew/bin:/usr/bin:/bin' },
@@ -203,6 +217,32 @@ test('a named profile backend does not inherit secrets the root .env/.op.env loa
     // Shell exports the root dotenv never declared, and OS names, still reach the child.
     assert.deepEqual(env, { HOME: '/Users/test', PATH: '/usr/bin:/bin', OPENROUTER_API_KEY: 'shell-key' })
   })
+})
+
+test('app-owned Telegram storage paths survive profile dotenv isolation', () => {
+  withHermesRoot(
+    {
+      '.env':
+        'HERMES_TELEGRAM_FILES_ROOT=/profile/override\nHERMES_TELEGRAM_FILES_INSTALL_DIR=0\nANTHROPIC_API_KEY=root-key\n',
+      'profiles/urbot/.env': 'ANTHROPIC_API_KEY=urbot-key\n'
+    },
+    root => {
+      const env = profileBackendParentEnv({
+        hermesHome: root,
+        profile: 'urbot',
+        currentEnv: {
+          HERMES_TELEGRAM_FILES_ROOT: '/app/Mickvvw-data/telegram_files',
+          HERMES_TELEGRAM_FILES_INSTALL_DIR: '1',
+          ANTHROPIC_API_KEY: 'root-key'
+        },
+        platform: 'linux'
+      })
+
+      assert.equal(env.HERMES_TELEGRAM_FILES_ROOT, '/app/Mickvvw-data/telegram_files')
+      assert.equal(env.HERMES_TELEGRAM_FILES_INSTALL_DIR, '1')
+      assert.equal(env.ANTHROPIC_API_KEY, undefined)
+    }
+  )
 })
 
 test('the launch profile backend inherits the Desktop env unchanged', () => {

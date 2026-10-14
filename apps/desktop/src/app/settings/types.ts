@@ -10,6 +10,7 @@ export type SettingsView =
   | 'cloud-backup'
   | 'connections'
   | 'gateway'
+  | 'guardian'
   | 'keybinds'
   | 'keys'
   | 'notifications'

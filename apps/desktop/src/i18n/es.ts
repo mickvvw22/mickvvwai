@@ -714,6 +714,7 @@ export const esOverrides = {
       gatewayConnection: 'Esta ventana',
       gatewayDevices: 'Conexiones guardadas',
       gatewayManagedUpdates: 'Actualizaciones remotas',
+      gatewayTelegramFiles: 'Archivos de Telegram',
       gatewayManagedUpdatesUnavailable:
         'Las actualizaciones remotas requieren una versión de escritorio compatible con actualizaciones SSH administradas.',
       gatewayManagedUpdatesEmpty:
@@ -1737,6 +1738,21 @@ export const esOverrides = {
       unavailableDesc:
         'Los ajustes de conexión solo se pueden cambiar desde la app Mickvvw Desktop en el equipo que la ejecuta.',
       title: 'Conexión del gateway',
+      telegramFilesTitle: 'Archivos de Telegram',
+      telegramFilesDescription: 'Envía y recibe archivos con el bot de Telegram. Los originales recibidos se guardan por tipo y los archivos comprimidos se extraen en una carpeta independiente.',
+      telegramCleanupLabel: 'Limpiar automáticamente los archivos extraídos',
+      telegramCleanupDescription:
+        'Solo se limpian las carpetas extraídas caducadas de los datos de la app. Nunca se eliminan automáticamente los originales ni los archivos de instalación.',
+      telegramRetentionLabel: 'Conservar archivos extraídos (días)',
+      telegramRetentionDescription: 'Eliminar las carpetas extraídas tras este número de días (1–3650).',
+      telegramStorageNote:
+        'Si se puede escribir, los archivos se guardan en una carpeta de Mickvvw junto a la instalación; si no, en los datos de la app. La limpieza está desactivada por defecto.',
+      telegramArchiveSupportNote: 'Se extraen de forma segura ZIP, TAR, GZ, BZ2 y XZ. Se omiten y no se comparten los archivos ocultos ni las entradas dentro de rutas ocultas; los archivos comprimidos que no puedan inspeccionarse de forma segura solo se conservan localmente.',
+      telegramFilesSave: 'Guardar ajustes',
+      telegramFilesSaving: 'Guardando…',
+      telegramFilesSaved: 'Se guardaron los ajustes de archivos de Telegram.',
+      telegramFilesSaveFailed: 'No se pudieron guardar los ajustes de archivos de Telegram.',
+      telegramFilesRestartNote: 'Reinicia el gateway de Telegram para aplicar los cambios.',
       envOverride: 'anulación de entorno',
       intro:
         'Local por predeterminado. Usa remoto cuando esta app deba controlar un backend de Mickvvw en otro lugar. Anulaciones por perfil a continuación.',

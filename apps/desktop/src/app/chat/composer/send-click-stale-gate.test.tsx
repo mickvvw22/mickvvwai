@@ -187,3 +187,79 @@ describe('composer Send button — pointerdown syncs the live draft (#52950)', (
     expect(send.disabled).toBe(true)
   })
 })
+
+
+// The chrome swaps the empty-state voice action for Send when a payload exists.
+// This focused mirror proves the live empty/non-empty edge opens that branch on
+// the input event itself, without waiting for the coalesced full-draft flush.
+function LivePresenceHarness() {
+  const [draft] = useState('')
+  const [hasLiveText, setHasLiveText] = useState(false)
+  const hasComposerPayload = hasLiveText || draft.trim().length > 0
+
+  return (
+    <>
+      <div
+        contentEditable
+        data-testid="live-editor"
+        onInput={event => {
+          const input = event.nativeEvent as InputEvent
+          const inputType = input.inputType ?? ''
+          const insert = inputType.startsWith('insert')
+          const shouldReadText =
+            inputType.startsWith('delete') ||
+            inputType.startsWith('history') ||
+            (!hasLiveText && insert) ||
+            (hasLiveText && insert && (input.data === null || input.data.trim().length === 0))
+
+          if (shouldReadText) {
+            setHasLiveText((event.currentTarget.textContent ?? '').trim().length > 0)
+          }
+        }}
+        suppressContentEditableWarning
+      />
+      {hasComposerPayload ? (
+        <button data-testid="live-send" disabled={!hasComposerPayload} type="button" />
+      ) : (
+        <button data-testid="live-voice" type="button" />
+      )}
+    </>
+  )
+}
+
+describe('composer Send visibility — live text edge before coalesced draft sync', () => {
+  it('shows an enabled Send control as soon as text is present in the editor', async () => {
+    const { getByTestId, queryByTestId } = render(<LivePresenceHarness />)
+    const editor = getByTestId('live-editor')
+
+    expect(queryByTestId('live-send')).toBeNull()
+    expect(getByTestId('live-voice')).toBeTruthy()
+
+    await act(async () => {
+      editor.textContent = 'hello'
+      fireEvent.input(editor, { data: 'h', inputType: 'insertText' })
+    })
+
+    expect((getByTestId('live-send') as HTMLButtonElement).disabled).toBe(false)
+    expect(queryByTestId('live-voice')).toBeNull()
+  })
+
+  it('returns to the empty-state action when live text is deleted before the draft flush', async () => {
+    const { getByTestId, queryByTestId } = render(<LivePresenceHarness />)
+    const editor = getByTestId('live-editor')
+
+    await act(async () => {
+      editor.textContent = 'hello'
+      fireEvent.input(editor, { data: 'h', inputType: 'insertText' })
+    })
+    expect(queryByTestId('live-send')).toBeTruthy()
+
+    await act(async () => {
+      editor.textContent = ''
+      fireEvent.input(editor, { data: null, inputType: 'deleteContentBackward' })
+    })
+
+    expect(queryByTestId('live-send')).toBeNull()
+    expect(getByTestId('live-voice')).toBeTruthy()
+  })
+})

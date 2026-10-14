@@ -444,6 +444,28 @@ class TestCacheDirectoryMounts:
         for mount in mounts:
             assert Path(mount["host_path"]).is_dir()
 
+    def test_app_telegram_storage_mounts_maps_and_syncs(self, tmp_path, monkeypatch):
+        storage_root = tmp_path / "Mickvvw-data" / "telegram_files"
+        received = storage_root / "received" / "documents" / "tg_abcd1234_report.pdf"
+        received.parent.mkdir(parents=True)
+        received.write_bytes(b"pdf bytes")
+        monkeypatch.setenv("HERMES_HOME", str(tmp_path / ".hermes"))
+        monkeypatch.setenv("HERMES_TELEGRAM_FILES_ROOT", str(storage_root))
+        monkeypatch.setenv("TERMINAL_ENV", "docker")
+
+        mounts = get_cache_directory_mounts()
+        assert {
+            "host_path": str(storage_root),
+            "container_path": "/root/.hermes/telegram_files",
+        } in mounts
+
+        from tools.credential_files import to_agent_visible_cache_path
+        assert to_agent_visible_cache_path(str(received)) == (
+            "/root/.hermes/telegram_files/received/documents/tg_abcd1234_report.pdf"
+        )
+        synced = {Path(entry["host_path"]) for entry in iter_cache_files()}
+        assert received in synced
+
     def test_composer_pastes_mounts_and_syncs(self, tmp_path, monkeypatch):
         """``composer-pastes/`` joins the staging dirs (#110174).
 

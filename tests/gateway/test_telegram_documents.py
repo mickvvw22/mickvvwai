@@ -9,7 +9,11 @@ We mock the telegram module at import time to avoid collection errors.
 """
 
 import asyncio
+import gzip
+import io
 import os
+import zipfile
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -104,9 +108,10 @@ def _make_video(file_obj=None):
 # ---------------------------------------------------------------------------
 
 @pytest.fixture()
-def adapter():
+def adapter(tmp_path):
     config = PlatformConfig(enabled=True, token="fake-token")
     a = TelegramAdapter(config)
+    a._update_receipt_dir = tmp_path / "profile"
     # Capture events instead of processing them
     a.handle_message = AsyncMock()
     # After PR #28494 made the empty-allowlist callback auth fail-closed
@@ -191,6 +196,91 @@ class TestDocumentDownloadBlock:
         event = adapter.handle_message.call_args[0][0]
         assert "file text" in event.text
         assert "Please summarize" in event.text
+
+
+    @pytest.mark.asyncio
+    async def test_hidden_document_is_not_downloaded_or_shared(self, adapter):
+        doc = _make_document(file_name=".secret.txt", mime_type="text/plain", file_size=15)
+
+        await adapter._handle_media_message(_make_update(_make_message(document=doc)), MagicMock())
+
+        doc.get_file.assert_not_awaited()
+        event = adapter.handle_message.call_args[0][0]
+        assert event.media_urls == []
+        assert "Hidden file" in event.text
+        assert "not read or shared" in event.text
+
+
+    @pytest.mark.asyncio
+    async def test_zip_is_saved_separately_and_extracted_text_is_available(self, adapter):
+        payload = io.BytesIO()
+        with zipfile.ZipFile(payload, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+            bundle.writestr("docs/readme.txt", "hello from the archive")
+            bundle.writestr(".secret", "root secret marker")
+            bundle.writestr("folder/.secret", "nested secret marker")
+            bundle.writestr(".private/hidden.txt", "hidden directory marker")
+            bundle.writestr("folder/.private/hidden.txt", "nested hidden directory marker")
+        contents = payload.getvalue()
+        doc = _make_document(
+            file_name="bundle.zip", mime_type="application/zip", file_size=len(contents),
+            file_obj=_make_file_obj(contents),
+        )
+
+        await adapter._handle_media_message(_make_update(_make_message(document=doc)), MagicMock())
+
+        event = adapter.handle_message.call_args[0][0]
+        assert len(event.media_urls) == 1  # original ZIP is kept locally, not exposed to the model
+        extracted = Path(event.media_urls[0])
+        assert extracted.is_dir() and extracted.parent.name == "archives"
+        assert (extracted / "documents" / "docs" / "readme.txt").read_text() == "hello from the archive"
+        assert not any(path.name.startswith(".") for path in extracted.rglob("*"))
+        assert "hello from the archive" in event.text
+        assert "root secret marker" not in event.text
+        assert "nested secret marker" not in event.text
+        assert "hidden directory marker" not in event.text
+        assert "not shared in this conversation" in event.text
+        originals = list(adapter._telegram_file_storage().received_root.rglob("*.zip"))
+        assert len(originals) == 1 and originals[0].is_file()
+
+
+    @pytest.mark.asyncio
+    async def test_gzip_without_filename_uses_mime_extension_and_extracts(self, adapter):
+        contents = gzip.compress(b"unlabelled gzip payload")
+        doc = _make_document(
+            file_name="", mime_type="application/gzip; charset=binary", file_size=len(contents),
+            file_obj=_make_file_obj(contents),
+        )
+
+        await adapter._handle_media_message(_make_update(_make_message(document=doc)), MagicMock())
+
+        event = adapter.handle_message.call_args[0][0]
+        assert len(event.media_urls) == 2
+        original, extracted = map(Path, event.media_urls)
+        assert original.parent.name == "archives" and original.suffix == ".gz"
+        unpacked = next(path for path in extracted.rglob("*") if path.is_file())
+        assert unpacked.read_bytes() == b"unlabelled gzip payload"
+        assert "safely extracted" in event.text
+
+
+    @pytest.mark.asyncio
+    async def test_unsafe_archive_is_kept_locally_but_not_shared(self, adapter):
+        payload = io.BytesIO()
+        with zipfile.ZipFile(payload, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+            bundle.writestr("../escape.txt", "must not be extracted")
+        contents = payload.getvalue()
+        doc = _make_document(
+            file_name="unsafe.zip", mime_type="application/zip", file_size=len(contents),
+            file_obj=_make_file_obj(contents),
+        )
+
+        await adapter._handle_media_message(_make_update(_make_message(document=doc)), MagicMock())
+
+        event = adapter.handle_message.call_args[0][0]
+        assert event.media_urls == []
+        assert "not shared" in event.text
+        assert "must not be extracted" not in event.text
+        originals = list(adapter._telegram_file_storage().received_root.rglob("*.zip"))
+        assert len(originals) == 1 and originals[0].is_file()
 
 
 
@@ -299,7 +389,10 @@ class TestMediaGroups:
         adapter.handle_message.assert_awaited_once()
         event = adapter.handle_message.await_args.args[0]
         assert event.text == "two images"
-        assert event.media_urls == ["/tmp/burst-one.jpg", "/tmp/burst-two.jpg"]
+        assert len(event.media_urls) == 2
+        stored_photos = [Path(path) for path in event.media_urls]
+        assert all(path.is_file() and path.parent.name == "images" for path in stored_photos)
+        assert [path.read_bytes() for path in stored_photos] == [b"first", b"second"]
         assert len(event.media_types) == 2
 
 

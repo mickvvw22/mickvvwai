@@ -53,15 +53,21 @@ def _import_roots(root: Path) -> list[Path]:
     return roots
 
 
-def _uncovered(root: Path) -> tuple[list[Path], int]:
-    """Parseable .py files without a pyc, and unparseable fixtures skipped."""
+def _uncovered(root: Path, *, cache_tag: str | None = None) -> tuple[list[Path], int]:
+    """Parseable .py files without a pyc, and unparseable fixtures skipped.
+
+    ``cache_tag`` is the staged interpreter's tag when its bytecode is being
+    checked from a different host Python version.
+    """
     from importlib.util import cache_from_source
     missing: list[Path] = []
     unparseable = 0
     for path in root.rglob("*.py"):
         if "__pycache__" in path.parts:
             continue
-        if Path(cache_from_source(path)).exists():
+        cached = (Path(cache_from_source(path)) if cache_tag is None else
+                  path.parent / "__pycache__" / f"{path.stem}.{cache_tag}.pyc")
+        if cached.exists():
             continue
         try:
             compile(path.read_bytes(), str(path), "exec")
@@ -82,13 +88,20 @@ def bake_bytecode(root: Path, python: Path) -> dict:
     python = Path(python).resolve()
     if not python.is_file():
         raise FileNotFoundError(f"staged interpreter is missing: {python}")
+    marker = root / MARKER
+    marker.unlink(missing_ok=True)
+    cache_tag = subprocess.check_output(
+        [str(python), "-I", "-c", "import sys; print(sys.implementation.cache_tag)"],
+        stdin=subprocess.DEVNULL, text=True, timeout=30).strip()
+    if not cache_tag:
+        raise ValueError(f"staged interpreter has no cache tag: {python}")
     total = 0
     for source_root in _import_roots(root):
         subprocess.run(
             [str(python), "-I", "-m", "compileall", "-q",
              "--invalidation-mode", "unchecked-hash", str(source_root)],
             check=True, timeout=30 * 60, stdin=subprocess.DEVNULL)
-        missing, _unparseable = _uncovered(source_root)
+        missing, _unparseable = _uncovered(source_root, cache_tag=cache_tag)
         if missing:
             sample = ", ".join(str(m.relative_to(root)) for m in missing[:5])
             raise ValueError(f"{len(missing)} payload modules have no bytecode pyc "

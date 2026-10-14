@@ -93,6 +93,8 @@ const PROCESS_ENV_NAMES = new Set([
   'APPDATA',
   'COMSPEC',
   'HERMES_HOME',
+  'HERMES_TELEGRAM_FILES_ROOT',
+  'HERMES_TELEGRAM_FILES_INSTALL_DIR',
   'HOME',
   'LANG',
   'LC_ALL',
@@ -224,7 +226,7 @@ function buildDesktopBackendEnv({
   currentEnv = process.env,
   platform = process.platform,
   homedir = os.homedir()
-}: any = {}) {
+}: any = {}): Record<string, string> {
   const delimiter = delimiterForPlatform(platform)
   const key = pathEnvKey(currentEnv, platform)
   const saneEntries = platform === 'win32' ? [] : POSIX_SANE_PATH_ENTRIES
@@ -240,6 +242,12 @@ function buildDesktopBackendEnv({
     // pre-bootstrap tracebacks) still decodes with the locale default without
     // this. User's explicit setting wins. Re-port of PR #56499 (echoriver89).
     PYTHONUTF8: currentEnv?.PYTHONUTF8 ?? '1',
+    ...(currentEnv?.HERMES_TELEGRAM_FILES_ROOT
+      ? { HERMES_TELEGRAM_FILES_ROOT: currentEnv.HERMES_TELEGRAM_FILES_ROOT }
+      : {}),
+    ...(currentEnv?.HERMES_TELEGRAM_FILES_INSTALL_DIR
+      ? { HERMES_TELEGRAM_FILES_INSTALL_DIR: currentEnv.HERMES_TELEGRAM_FILES_INSTALL_DIR }
+      : {}),
     [key]: appendUniquePathEntries([inherited, saneEntries], { delimiter })
   }
 }

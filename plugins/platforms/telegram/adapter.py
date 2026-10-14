@@ -142,8 +142,7 @@ from agent.i18n import get_language, t
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import (
     BasePlatformAdapter, ExecApprovalPrompt, SendResult, classify_send_error, unauthorized_action_notice,
-    cache_image_from_bytes_async, cache_audio_from_bytes_async, cache_video_from_bytes_async, resolve_proxy_url, SUPPORTED_VIDEO_TYPES,
-    SUPPORTED_DOCUMENT_TYPES, SUPPORTED_IMAGE_DOCUMENT_TYPES, _TEXT_INJECT_EXTENSIONS, utf16_len,
+    cache_image_from_bytes_async, resolve_proxy_url, SUPPORTED_VIDEO_TYPES, utf16_len,
 )
 
 # Telegram truncates ``answerCallbackQuery`` text at 200 chars; ``BotCommand`` descriptions at 256.
@@ -179,6 +178,7 @@ _MEDIA_KIND_KEYS = {
 
 from gateway.platforms.event import MessageEvent, MessageType, ProcessingOutcome
 from plugins.platforms.telegram.telegram_entities import expand_link_entities
+from plugins.platforms.telegram.telegram_file_handling import TelegramFileHandlingMixin
 from plugins.platforms.telegram.telegram_held_inbound import TelegramHeldInboundMixin
 from plugins.platforms.telegram.telegram_ids import normalize_telegram_chat_id
 from plugins.platforms.telegram.telegram_network import (
@@ -511,7 +511,7 @@ class _PollingStallError(RuntimeError):
     """
 
 
-class TelegramAdapter(TelegramHeldInboundMixin, BasePlatformAdapter):
+class TelegramAdapter(TelegramFileHandlingMixin, TelegramHeldInboundMixin, BasePlatformAdapter):
     """Telegram bot adapter: users/groups, MarkdownV2 replies, forum topics, media."""
 
     # Bound for the per-(chat_id, status_key) status-message cache; FIFO half-trim on overflow.
@@ -2900,6 +2900,7 @@ class TelegramAdapter(TelegramHeldInboundMixin, BasePlatformAdapter):
         # Everything appended above is core; a late plugin re-wire must land BEFORE these (#87770).
         if isinstance(table, dict):
             self._core_handler_ids = {id(h) for g, hs in table.items() for h in hs[core_before.get(g, 0):]}
+        self._start_file_cleanup()
 
     def _wire_plugin_handlers(self, native: Any = None) -> None:
         """PTB dispatches the FIRST matching handler per group and core registers catch-alls
@@ -6658,6 +6659,14 @@ class TelegramAdapter(TelegramHeldInboundMixin, BasePlatformAdapter):
         """Download a voice/audio/video attachment into the local cache. Returns True when the event was
         already dispatched (oversized attachment), so the caller must return."""
         try:
+            filename = getattr(source, "file_name", None) or f"{kind}{ext}"
+            if self._telegram_file_storage().is_hidden_filename(filename):
+                event.text = self._append_observed_note(
+                    event.text,
+                    f"Hidden {kind} file '{filename}' was ignored; its contents were not read or shared.",
+                )
+                await self.handle_message(event)
+                return True
             allowed, note = self._telegram_media_size_allowed(source, label)
             if not allowed:
                 event.text = self._append_observed_note(event.text, note or "")
@@ -6668,10 +6677,8 @@ class TelegramAdapter(TelegramHeldInboundMixin, BasePlatformAdapter):
             data = await file_obj.download_as_bytearray()
             if kind == "video":
                 ext = self._ext_from_path(getattr(file_obj, "file_path", None), SUPPORTED_VIDEO_TYPES, ext)
-                cached_path = await cache_video_from_bytes_async(bytes(data), ext=ext)
                 mime = SUPPORTED_VIDEO_TYPES.get(ext, "video/mp4")
-            else:
-                cached_path = await cache_audio_from_bytes_async(bytes(data), ext=ext)
+            cached_path = await self._store_received_attachment(bytes(data), filename, mime)
             event.media_urls = [cached_path]
             event.media_types = [mime]
             logger.info("[Telegram] Cached user %s at %s", kind, cached_path)
@@ -6694,87 +6701,7 @@ class TelegramAdapter(TelegramHeldInboundMixin, BasePlatformAdapter):
         logger.info(log_fmt, path)
 
     async def _cache_inbound_document(self, msg, event: MessageEvent) -> bool:
-        """Cache a document attachment (image → photo path, video, else generic media + text injection).
-        Returns True when the event was already dispatched/routed so the caller must return."""
-        doc = msg.document
-        try:
-            original_filename = doc.file_name or ""
-            ext = os.path.splitext(original_filename)[1].lower() if original_filename else ""
-            doc_mime = (doc.mime_type or "").lower()  # some clients send "IMAGE/PNG"
-            if not ext and doc_mime:
-                ext = _TELEGRAM_IMAGE_MIME_TO_EXT.get(doc_mime, "")
-                if not ext:
-                    ext = {v: k for k, v in SUPPORTED_DOCUMENT_TYPES.items()}.get(doc_mime, "")
-            display = original_filename or doc_mime or ext or 'unknown'
-            # Size check before the image branch so image documents can't bypass the limit.
-            if not doc.file_size or doc.file_size > self._max_doc_bytes:
-                logger.info("[Telegram] Document too large: %s bytes", doc.file_size)
-                return await self._dispatch_with_text(
-                    event, f"The document is too large or its size could not be verified. Maximum: {self._max_doc_bytes // (1024 * 1024)} MB.")
-            # Screenshots/photos sent as documents take the image cache + batching path.
-            if ext in _TELEGRAM_IMAGE_EXTENSIONS or doc_mime.startswith("image/"):
-                file_obj = await doc.get_file()
-                image_bytes = await file_obj.download_as_bytearray()
-                image_ext = ext if ext in _TELEGRAM_IMAGE_EXTENSIONS else _TELEGRAM_IMAGE_MIME_TO_EXT.get(doc_mime, ".jpg")
-                try:
-                    cached_path = await cache_image_from_bytes_async(bytes(image_bytes), ext=image_ext)
-                except ValueError as e:
-                    logger.warning("[Telegram] Failed to cache image document: %s", _redact_telegram_error_text(e), exc_info=True)
-                    return await self._dispatch_with_text(event, f"Image document '{display}' could not be read as an image.")
-                self._set_cached_media(
-                    event, cached_path, doc_mime if doc_mime.startswith(
-                        "image/"
-                    ) else _TELEGRAM_IMAGE_EXT_TO_MIME.get(image_ext, "image/jpeg"),
-                    MessageType.PHOTO, "[Telegram] Cached user image-document at %s")
-                await self._route_photo_event(msg, event)
-                return True
-            if not ext and doc.mime_type:
-                ext = {v: k for k, v in SUPPORTED_VIDEO_TYPES.items()}.get(doc.mime_type, "")
-            if not ext and doc.mime_type:
-                # .jpg and .jpeg both map to image/jpeg; keep the first ext seen.
-                image_mime_to_ext: dict[str, str] = {}
-                for _ext, _mime in SUPPORTED_IMAGE_DOCUMENT_TYPES.items():
-                    image_mime_to_ext.setdefault(_mime, _ext)
-                ext = image_mime_to_ext.get(doc.mime_type, "")
-            if ext in SUPPORTED_VIDEO_TYPES:
-                file_obj = await doc.get_file()
-                video_bytes = await file_obj.download_as_bytearray()
-                self._set_cached_media(
-                    event, await cache_video_from_bytes_async(bytes(video_bytes), ext=ext), SUPPORTED_VIDEO_TYPES[ext], MessageType.VIDEO,
-                    "[Telegram] Cached user video document at %s")
-                await self.handle_message(event)
-                return True
-            # Any file type is accepted (authorization is the gate, not the extension); unknown types get
-            # application/octet-stream. Image documents already returned above.
-            file_obj = await doc.get_file()
-            raw_bytes = bytes(await file_obj.download_as_bytearray())
-            from gateway.platforms.base import cache_media_bytes_async
-            cached = await cache_media_bytes_async(raw_bytes, filename=original_filename or f"document{ext or '.bin'}", mime_type=doc_mime)
-            if cached is None:
-                return await self._dispatch_with_text(event, f"Document '{display}' could not be cached.")
-            event.media_urls = [cached.path]
-            event.media_types = [cached.media_type]
-            event.media_text_inlined = [False]  # flipped below once the text is actually injected
-            if cached.kind == "audio":
-                event.message_type = MessageType.AUDIO
-            logger.info("[Telegram] Cached user %s at %s (%s)", cached.kind, cached.path, cached.media_type)
-            # Inject text-readable content (≤100 KB). Gate on extension/MIME, NOT a blind UTF-8 decode:
-            # PDF/zip/docx have decodable ASCII headers. Binary files are surfaced as a cached path only.
-            MAX_TEXT_INJECT_BYTES = 100 * 1024
-            _is_text = ext in _TEXT_INJECT_EXTENSIONS or (doc_mime or "").startswith("text/")
-            if _is_text and len(raw_bytes) <= MAX_TEXT_INJECT_BYTES:
-                try:
-                    text_content = raw_bytes.decode("utf-8")
-                    display_name = re.sub(r'[^\w.\- ]', '_', original_filename or f"document{ext or '.txt'}")
-                    injection = f"[Content of {display_name}]:\n{text_content}"
-                    event.text = f"{injection}\n\n{event.text}" if event.text else injection
-                    event.media_text_inlined = [True]
-                except UnicodeDecodeError:
-                    pass  # binary — agent has the cached path
-        except Exception as e:
-            logger.warning("[Telegram] Failed to cache document: %s", _redact_telegram_error_text(e), exc_info=True)
-            await self._surface_media_cache_failure(msg, event, "attachment", e, display_name=getattr(doc, "file_name", None) or None)
-        return False
+        return await TelegramFileHandlingMixin._cache_inbound_document(self, msg, event)
 
     async def _handle_media_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """Handle incoming media messages, downloading images to local cache."""
@@ -6808,8 +6735,15 @@ class TelegramAdapter(TelegramHeldInboundMixin, BasePlatformAdapter):
                 file_obj = await msg.photo[-1].get_file()  # PhotoSize list sorted by size; largest last
                 image_bytes = await file_obj.download_as_bytearray()
                 ext = self._ext_from_path(file_obj.file_path, [".png", ".webp", ".gif", ".jpeg", ".jpg"], ".jpg")
+                validation_path = await cache_image_from_bytes_async(bytes(image_bytes), ext=ext)
+                if not validation_path:
+                    raise ValueError("Telegram photo failed image validation")
+                with contextlib.suppress(OSError):
+                    os.unlink(validation_path)
+                cached_path = await self._store_received_attachment(
+                    bytes(image_bytes), f"telegram-photo{ext}", _TELEGRAM_IMAGE_EXT_TO_MIME.get(ext, "image/jpeg"))
                 self._set_cached_media(
-                    event, await cache_image_from_bytes_async(bytes(image_bytes), ext=ext), f"image/{ext.lstrip('.')}", event.message_type,
+                    event, cached_path, _TELEGRAM_IMAGE_EXT_TO_MIME.get(ext, "image/jpeg"), event.message_type,
                     "[Telegram] Cached user photo at %s")
                 await self._route_photo_event(msg, event)
                 return
@@ -7293,7 +7227,7 @@ def _apply_yaml_config(yaml_cfg: dict, telegram_cfg: dict) -> dict | None:
     _bridge_gate(
         "group_allowed_chats", "TELEGRAM_GROUP_ALLOWED_CHATS",
         telegram_cfg.get("group_allowed_chats") or _telegram_extra.get("group_allowed_chats"))
-    for _key in ("guest_mode", "disable_link_previews", "observe_unmentioned_group_messages", "free_response_topics"):
+    for _key in ("guest_mode", "disable_link_previews", "observe_unmentioned_group_messages", "free_response_topics", "file_handling"):
         if _key in telegram_cfg:
             extras.setdefault(_key, telegram_cfg[_key])
     # Pass through telegram-specific extra keys but EXCLUDE generic shared-config keys: _merge_platform_map

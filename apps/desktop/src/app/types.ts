@@ -129,6 +129,7 @@ export type SidebarNavId =
   | 'artifacts'
   | 'capabilities'
   | 'cloud-backup'
+  | 'guardian'
   | 'command-center'
   | 'cron'
   | 'messaging'

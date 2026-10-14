@@ -83,3 +83,33 @@ def test_cache_media_bytes_returns_host_path_and_translates_in_note(two_homes):
         cached = cache_media_bytes(b"%PDF-1.4 x", filename="report.pdf", mime_type="application/pdf")
         assert Path(cached.path).is_file() and Path(cached.path).parent == b / "cache" / "documents"
         assert cached.context_note().startswith("[document 'report.pdf' saved at: /root/.hermes/cache/documents/doc_")
+
+
+def test_routed_turn_rehomes_telegram_original_and_extraction_directory(two_homes):
+    a, b = two_homes
+    original = a / "cache" / "telegram_files" / "received" / "archives" / "tg_a1_bundle.zip"
+    original.parent.mkdir(parents=True)
+    original.write_bytes(b"zip bytes")
+    extracted = a / "cache" / "telegram_files" / "extracted" / "archives" / "bundle_a1"
+    nested = extracted / "documents" / "notes.txt"
+    nested.parent.mkdir(parents=True)
+    nested.write_text("extracted text", encoding="utf-8")
+    event = MessageEvent(
+        text=f"Archive saved at {original}; extracted to {extracted}",
+        message_type=MessageType.DOCUMENT,
+        source=None,
+        media_urls=[str(original), str(extracted)],
+        media_types=["application/zip", "inode/directory"],
+    )
+
+    with _profile_runtime_scope(b):
+        rehome_inbound_media(event)
+
+    routed_original = b / "cache" / "telegram_files" / "received" / "archives" / original.name
+    routed_extracted = b / "cache" / "telegram_files" / "extracted" / "archives" / extracted.name
+    assert event.media_urls == [str(routed_original), str(routed_extracted)]
+    assert routed_original.read_bytes() == b"zip bytes"
+    assert (routed_extracted / "documents" / "notes.txt").read_text(encoding="utf-8") == "extracted text"
+    assert str(original) not in event.text and str(extracted) not in event.text
+    assert "telegram_files/extracted/archives" in event.text
+    assert not original.exists() and not extracted.exists()

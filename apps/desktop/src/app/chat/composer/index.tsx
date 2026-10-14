@@ -269,6 +269,7 @@ export function ChatBar({
     draftRef,
     editorRef,
     focusInput,
+    hasLiveText,
     hasText,
     insertInlineRefs,
     insertText,
@@ -278,8 +279,10 @@ export function ChatBar({
     requestMainFocus,
     sessionIdRef,
     setComposerText,
+    setLiveTextPresence,
     stashAt,
-    syncDraftFromEditor
+    syncDraftFromEditor,
+    syncLiveTextPresenceFromInput
   } = useComposerDraft({ activeQueueSessionKey, focusKey, inputDisabled, queueEditRef, sessionId })
 
   useComposerScreenshot({ sessionKey: activeQueueSessionKey, focusKey, onAttachImageBlob })
@@ -381,7 +384,7 @@ export function ChatBar({
     poppedOut
   })
 
-  const hasComposerPayload = hasText || attachments.length > 0
+  const hasComposerPayload = hasText || hasLiveText || attachments.length > 0
   const canSubmit = busy || hasComposerPayload
 
   // Steer only makes sense mid-turn, text-only (the gateway can't carry images
@@ -475,6 +478,7 @@ export function ChatBar({
     normalizeComposerEditorDom(editor)
 
     const nextDraft = sanitizeComposerInput(composerPlainText(editor))
+    setLiveTextPresence(nextDraft)
 
     if (nextDraft !== draftRef.current) {
       draftRef.current = nextDraft
@@ -515,6 +519,8 @@ export function ChatBar({
       return
     }
 
+    const input = event.nativeEvent as InputEvent
+    syncLiveTextPresenceFromInput(event.currentTarget, input.inputType ?? '', input.data)
     scheduleFlushEditorToDraft(event.currentTarget)
   }
 

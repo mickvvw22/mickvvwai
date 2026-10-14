@@ -711,6 +711,7 @@ export const frOverrides = {
       gatewayConnection: 'Cette fenêtre',
       gatewayDevices: 'Connexions enregistrées',
       gatewayManagedUpdates: 'Mises à jour à distance',
+      gatewayTelegramFiles: 'Fichiers Telegram',
       gatewayManagedUpdatesUnavailable:
         'Les mises à jour à distance nécessitent une version de Desktop prenant en charge les mises à jour SSH gérées.',
       gatewayManagedUpdatesEmpty:
@@ -1741,6 +1742,21 @@ export const frOverrides = {
       unavailableTitle: 'Paramètres du gateway indisponibles',
       unavailableDesc: "Le pont IPC du desktop n'expose pas les paramètres du gateway.",
       title: 'Connexion au gateway',
+      telegramFilesTitle: 'Fichiers Telegram',
+      telegramFilesDescription: 'Envoyez et recevez des fichiers avec le bot Telegram. Les originaux reçus sont classés par type et les archives sont extraites dans un dossier séparé.',
+      telegramCleanupLabel: 'Nettoyer automatiquement les fichiers extraits',
+      telegramCleanupDescription:
+        'Seuls les dossiers extraits expirés des données de l’app sont nettoyés. Les originaux et les fichiers d’installation/voisins ne sont jamais supprimés automatiquement.',
+      telegramRetentionLabel: 'Conservation des fichiers extraits (jours)',
+      telegramRetentionDescription: 'Supprimer les dossiers extraits après ce nombre de jours (1–3650).',
+      telegramStorageNote:
+        'Si l’installation est accessible en écriture, les fichiers vont dans un dossier Mickvvw voisin ; sinon, dans les données de l’app. Le nettoyage est désactivé par défaut.',
+      telegramArchiveSupportNote: 'ZIP, TAR, GZ, BZ2 et XZ sont extraits en toute sécurité. Les fichiers cachés et les entrées dans des chemins cachés sont ignorés et jamais partagés ; les archives impossibles à inspecter en toute sécurité restent uniquement en local.',
+      telegramFilesSave: 'Enregistrer les paramètres',
+      telegramFilesSaving: 'Enregistrement…',
+      telegramFilesSaved: 'Paramètres des fichiers Telegram enregistrés.',
+      telegramFilesSaveFailed: 'Impossible d’enregistrer les paramètres des fichiers Telegram.',
+      telegramFilesRestartNote: 'Redémarrez le gateway Telegram pour appliquer les modifications.',
       envOverride: "remplacement par variable d'environnement",
       intro:
         'Local par défaut. Utilisez distant quand cette application doit piloter un backend Mickvvw ailleurs. Remplacements par profil ci-dessous.',
@@ -2026,12 +2042,10 @@ export const frOverrides = {
       freeTier: {
         signIn: 'Se connecter',
         title: 'Vous utilisez l’offre gratuite Nous',
-        message: 'Connectez-vous avec un compte Nous pour débloquer davantage de modèles et d’outils.',
-        caption:
-          'Fonctionne avec nous/welcome, connecteurs inclus. La connexion conserve vos connecteurs et ajoute les outils qui nécessitent un compte ainsi que tous les autres modèles.',
+        message: 'Les modèles et outils disponibles apparaissent dans la liste des fournisseurs.',
+        caption: 'Utilise nous/welcome ; les connecteurs disponibles dépendent de la configuration du service.',
         name: 'Nous · offre gratuite',
-        footnote:
-          'L’offre gratuite n’a ni solde ni rien à payer. Le paiement et l’utilisation apparaissent une fois connecté avec un compte Nous.',
+        footnote: 'Le solde et les informations de paiement ne sont pas affichés pour le service gratuit.',
         plan: 'Offre gratuite',
         model: 'Modèle',
         connectors: 'Connecteurs',
@@ -4492,16 +4506,16 @@ export const frOverrides = {
     readyTitle: 'Mickvvw est prêt.',
     readyCaption: 'Gratuit · connecteurs inclus',
     begin: 'Commencer',
-    signInInstead: 'Se connecter plutôt avec un compte Nous',
+    signInInstead: 'Connecter un compte fournisseur',
     otherProviders: 'Autres fournisseurs',
-    stripTitle: "L'inférence Nous gratuite et les connecteurs sont maintenant disponibles.",
-    stripBody: 'Ouvrez le sélecteur de modèle pour les essayer ou connectez-vous avec un compte Nous.',
+    stripTitle: 'État du service',
+    stripBody: 'Consultez les modèles actuellement disponibles dans le sélecteur.',
     openModelPicker: 'Ouvrir le sélecteur de modèle',
     dismiss: 'Fermer',
     providerName: 'Nous',
     statusLabel: model => `Nous · ${model}`,
     signIn: 'Se connecter',
-    signInHeading: 'Connectez-vous avec un compte Nous pour débloquer davantage de modèles et outils.',
+    signInHeading: 'Connecter un compte fournisseur',
     settingUp: "Configuration de l'inférence gratuite…",
     codeBody: 'Saisissez ce code dans votre navigateur pour terminer la connexion.',
     copyLink: 'Copier le lien',
@@ -4511,7 +4525,7 @@ export const frOverrides = {
     finishingBody: 'Autorisation accordée dans le navigateur. Récupération des jetons de votre compte.',
     signedInAs: email => `Connecté en tant que ${email}`,
     signedIn: 'Connecté.',
-    completedBody: "Votre compte donne maintenant accès à l'inférence et aux outils.",
+    completedBody: 'Votre compte est connecté. Ce service fournit l’inférence et les outils.',
     defaultModel: 'Modèle par défaut',
     change: 'Modifier',
     done: 'Terminé',
@@ -4519,12 +4533,12 @@ export const frOverrides = {
     tryAgain: 'Réessayer',
     startAgain: 'Recommencer',
     didNotComplete: "La connexion n'a pas abouti",
-    rejectedBody: "La connexion a été refusée dans le navigateur. Vous restez sur l'offre gratuite.",
+    rejectedBody: "La connexion n'a pas abouti.",
     supersededBody: 'Un code de connexion plus récent a remplacé celui-ci.',
     timedOutHeading: 'Délai de connexion dépassé',
-    timedOutBody: "Le code n'a pas été utilisé à temps. Vous restez sur l'offre gratuite.",
+    timedOutBody: "Le code de connexion a expiré. Recommencez si nécessaire.",
     retiredBody:
-      "Cette identité d'offre gratuite a déjà été utilisée ou a expiré ; une nouvelle sera créée au prochain démarrage.",
+      'Cette autorisation de service a expiré ou a déjà été utilisée. Elle pourra être configurée à nouveau au prochain démarrage.',
     errorBody: "La connexion n'a pas abouti ; relancez-la.",
     busyHeading: 'Presque terminé',
     busyBody: wait =>
@@ -4551,9 +4565,9 @@ export const frOverrides = {
       serverError:
         'Le service Nous a rencontré un problème. Réessayez dans un instant ou connectez un autre fournisseur.',
       powRequired:
-        "Le serveur Nous a demandé une preuve de travail qui n'est pas encore gérée par votre Agent. Connectez-vous ou créez un compte Nous gratuit pour continuer.",
+        "Le service a demandé une preuve de travail non prise en charge par cet agent. Configurez un autre fournisseur ou réessayez plus tard.",
       locked:
-        'Cette session ne peut pas continuer sans connexion. Connectez-vous ou créez un compte Nous gratuit pour poursuivre.',
+        'Une connexion est requise pour cette session. Connectez le compte nécessaire ou choisissez un autre fournisseur.',
       generic:
         "Mickvvw n'a pas pu configurer l'accès gratuit sans connexion. Connectez-vous gratuitement ou choisissez un autre fournisseur.",
       signInBelow: 'La connexion est gratuite. Choisissez Nous ci-dessous.',
@@ -5163,11 +5177,11 @@ export const frOverrides = {
         },
         free_tier_rate_limited: {
           title: 'Vous avez épuisé le quota sans connexion',
-          body: 'Il sera bientôt renouvelé. Connectez-vous avec un compte Nous gratuit pour obtenir un quota plus élevé.'
+          body: 'Le quota sera renouvelé sous peu. Réessayez plus tard ou choisissez un autre fournisseur.'
         },
         free_tier_at_capacity: {
           title: 'Le service sans connexion est très sollicité',
-          body: 'Connectez-vous gratuitement pour éviter la file, ou réessayez un peu plus tard.'
+          body: 'Le service est très sollicité. Réessayez un peu plus tard ou choisissez un autre fournisseur.'
         },
         free_tier_model_not_free: {
           title: "Ce modèle n'est pas disponible sans connexion",

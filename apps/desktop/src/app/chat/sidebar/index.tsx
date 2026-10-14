@@ -264,6 +264,12 @@ const SIDEBAR_NAV: SidebarNavItem[] = [
     label: 'Model integration',
     icon: props => <Codicon name="symbol-interface" {...props} />,
     route: `${SETTINGS_ROUTE}?tab=providers`
+  },
+  {
+    id: 'guardian',
+    label: '',
+    icon: props => <Codicon name="shield" {...props} />,
+    route: `${SETTINGS_ROUTE}?tab=guardian`
   }
 ]
 
@@ -1609,6 +1615,7 @@ export function ChatSidebar({
                   (item.id === 'artifacts' && currentView === 'artifacts') ||
                   (item.id === 'cron' && currentView === 'cron') ||
                   (item.id === 'cloud-backup' && currentView === 'settings' && activeSettingsTab === 'cloud-backup') ||
+                  (item.id === 'guardian' && currentView === 'settings' && activeSettingsTab === 'guardian') ||
                   (item.id === 'model-access' && currentView === 'settings' && activeSettingsTab === 'providers') ||
                   // Contributed rows light up at their own route.
                   (currentView === 'extension' && Boolean(item.route) && pathname === item.route)

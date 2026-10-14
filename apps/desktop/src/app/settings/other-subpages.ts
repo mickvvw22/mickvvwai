@@ -5,7 +5,8 @@ export const OTHER_SUBPAGES: Record<string, { id: string; labelKey: string }[]> 
   gateway: [
     { id: 'connection', labelKey: 'gatewayConnection' },
     { id: 'devices', labelKey: 'gatewayDevices' },
-    { id: 'managed-updates', labelKey: 'gatewayManagedUpdates' }
+    { id: 'managed-updates', labelKey: 'gatewayManagedUpdates' },
+    { id: 'telegram-files', labelKey: 'gatewayTelegramFiles' }
   ],
   keybinds: [
     { id: 'shortcuts', labelKey: 'keyboardShortcuts' },

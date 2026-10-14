@@ -711,6 +711,7 @@ export const deOverrides = {
       gatewayConnection: 'Dieses Fenster',
       gatewayDevices: 'Gespeicherte Verbindungen',
       gatewayManagedUpdates: 'Remote-Updates',
+      gatewayTelegramFiles: 'Telegram-Dateien',
       gatewayManagedUpdatesUnavailable:
         'Remote-Updates erfordern eine Desktop-Version mit Unterstützung für verwaltete SSH-Updates.',
       gatewayManagedUpdatesEmpty:
@@ -1738,6 +1739,21 @@ export const deOverrides = {
       unavailableTitle: 'Gateway-Einstellungen nicht verfügbar',
       unavailableDesc: 'Die Desktop-IPC-Brücke stellt keine Gateway-Einstellungen bereit.',
       title: 'Gateway-Verbindung',
+      telegramFilesTitle: 'Telegram-Dateien',
+      telegramFilesDescription: 'Sende und empfange Dateien mit dem Telegram-Bot. Empfangene Originale werden nach Typ gespeichert; Archive werden in einen separaten Ordner entpackt.',
+      telegramCleanupLabel: 'Entpackte Dateien automatisch bereinigen',
+      telegramCleanupDescription:
+        'Nur abgelaufene entpackte Ordner in den App-Daten werden bereinigt. Originale und Dateien im Installations-/Nebenordner werden nie automatisch gelöscht.',
+      telegramRetentionLabel: 'Entpackte Dateien aufbewahren (Tage)',
+      telegramRetentionDescription: 'Entpackordner nach dieser Anzahl von Tagen entfernen (1–3650).',
+      telegramStorageNote:
+        'Bei Schreibzugriff werden Dateien in einem Mickvvw-Ordner neben der Installation gespeichert, sonst in den App-Daten. Bereinigung ist standardmäßig aus.',
+      telegramArchiveSupportNote: 'ZIP, TAR, GZ, BZ2 und XZ werden sicher entpackt. Versteckte Dateien und Einträge in versteckten Pfaden werden übersprungen und nie geteilt; nicht sicher prüfbare Archive bleiben nur lokal.',
+      telegramFilesSave: 'Einstellungen speichern',
+      telegramFilesSaving: 'Wird gespeichert…',
+      telegramFilesSaved: 'Telegram-Dateieinstellungen gespeichert.',
+      telegramFilesSaveFailed: 'Telegram-Dateieinstellungen konnten nicht gespeichert werden.',
+      telegramFilesRestartNote: 'Telegram-Gateway neu starten, damit die Änderungen wirksam werden.',
       envOverride: 'ENV-Überschreibung',
       intro:
         'Standardmäßig lokal. Verwenden Sie Remote, wenn diese App ein Mickvvw-Backend an einem anderen Ort steuern soll. Gateway-Verbindungen gelten pro Gerät; Profile werden von den Gateways ermittelt, mit denen Sie sich verbinden.',

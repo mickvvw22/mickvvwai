@@ -160,7 +160,7 @@ gateway:
     header: "**Отчёт отладки загружен:**"
     auto_delete: "⏱ Вставки автоматически удалятся через 6 часов."
     full_logs_hint: "Для загрузки полных журналов используйте `hermes debug share` из CLI."
-    share_hint: "Поделитесь этими ссылками с командой Xinyuan для получения поддержки."
+    share_hint: "Поделитесь этими ссылками с командой Mickvvw для получения поддержки."
     report_label: "Отчёт"
   deny:
     stale: "❌ Команда отклонена (одобрение устарело)."
@@ -203,7 +203,7 @@ gateway:
     set: "⊙ Цель задана (бюджет {budget} ходов): {goal}\nЯ продолжу работу, пока цель не будет достигнута, вы её не приостановите/очистите, или бюджет не исчерпается.\nУправление: /goal status · /goal pause · /goal resume · /goal clear"
     gate_add_admin_only: "⛔ /goal gate add требует явно настроенного администратора шлюза (allow_admin_from для ЛС, group_allow_admin_from для групп)."
   help:
-    header: "📖 **Команды Xinyuan**\n"
+    header: "📖 **Команды Mickvvw**\n"
     skill_header: "\n⚡ **Команды навыков** (активных: {count}):"
     more_use_commands: "\n... и ещё {count}. Используйте `/commands` для полного списка с постраничной разбивкой."
   insights:
@@ -329,7 +329,7 @@ gateway:
     db_unavailable: "База данных сеансов недоступна."
     parse_error: "⚠️ Could not parse `/resume` arguments: {error}. Use quotes around titles with spaces, for example: `/resume \"Project A Plan\"`."
     matrix_no_named_sessions: "No named sessions found for this Matrix room. Use `/title My Session` to name the current room session, `/resume --all` to list all Matrix sessions, or `/resume --cross-room <session name>` to explicitly cross room boundaries."
-    matrix_blocked_no_origin: "⚠️ Matrix /resume заблокирован: у этого именованного сеанса нет записанной исходной комнаты, поэтому Xinyuan по умолчанию не возобновит его в текущей комнате. Используйте `/resume --cross-room {name}`, если вы намеренно хотите выйти за границы комнаты."
+    matrix_blocked_no_origin: "⚠️ Matrix /resume заблокирован: у этого именованного сеанса нет записанной исходной комнаты, поэтому Mickvvw по умолчанию не возобновит его в текущей комнате. Используйте `/resume --cross-room {name}`, если вы намеренно хотите выйти за границы комнаты."
     matrix_blocked_other_room: "⚠️ Matrix /resume заблокирован: этот сеанс принадлежит другой комнате Matrix ({room}). Используйте `/resume --cross-room {name}`, если вы намеренно хотите возобновить его здесь."
     matrix_cross_room_success: "⚠️ Cross-room resume: resumed **{title}** inside Matrix room **{room}**. Future messages in this room will use that transcript until `/reset` or another `/resume`.{msg_part}"
     blocked_not_owner: "⚠️ /resume заблокирован: '**{name}**' принадлежит другому пользователю или чату. Возобновлять можно только сеансы этого чата."
@@ -422,7 +422,7 @@ gateway:
     source_line: "Источник: {source}; значения по категориям — локальные оценки."
     hint_all: "Используйте /context all, чтобы увидеть стоимость каждого навыка и набора инструментов."
   status:
-    header: "📊 **Состояние Xinyuan Gateway**"
+    header: "📊 **Состояние Mickvvw Gateway**"
     matrix_scope_header: "**Область Matrix:**"
     matrix_scope_room: "  room: {room}"
     matrix_scope_room_id: "  room_id: {room_id}"
@@ -466,24 +466,24 @@ gateway:
     topics_user_disallowed: "Telegram topics включены, но пользователям не разрешено создавать topics.\n\nОткройте @BotFather → выберите своего бота → Bot Settings → Threads Settings, затем выключите 'Disallow users to create new threads'.\n\nЗатем снова отправьте /topic."
     enable_failed: "Не удалось включить режим Telegram topic: {error}"
     bound_status: "Этот topic привязан к:\nСеанс: {label}\nID: {session_id}\n\nИспользуйте /new, чтобы заменить этот topic новым сеансом.\nДля параллельной работы откройте All Messages и отправьте там сообщение, чтобы создать другой topic."
-    thread_ready: "Многосеансовые Telegram topics включены.\n\nЭтот topic будет использоваться как независимый сеанс Xinyuan. Используйте /new, чтобы заменить текущий сеанс этого topic. Для параллельной работы откройте All Messages и отправьте там сообщение, чтобы создать другой topic."
+    thread_ready: "Многосеансовые Telegram topics включены.\n\nЭтот topic будет использоваться как независимый сеанс Mickvvw. Используйте /new, чтобы заменить текущий сеанс этого topic. Для параллельной работы откройте All Messages и отправьте там сообщение, чтобы создать другой topic."
     untitled_session: "Сеанс без названия"
     restore_step_1: "1. Создайте или откройте топик. Чтобы создать новый, откройте «Все сообщения» и отправьте туда любое сообщение."
     restore_step_2: "2. Отправьте /topic <session-id> внутри этого топика."
-    default_title: "Чат Xinyuan"
-    root_lobby: "Этот основной чат зарезервирован для системных команд.\n\nЧтобы начать новый чат с Xinyuan, откройте топик «Все сообщения» вверху интерфейса бота и отправьте туда любое сообщение. Telegram создаст для него новый топик; каждый топик работает как независимый сеанс Xinyuan."
-    root_new: "Чтобы начать новый параллельный чат с Xinyuan, откройте топик «Все сообщения» вверху интерфейса бота и отправьте туда любое сообщение. Telegram создаст для него новый топик.\n\nКаждый топик — независимый сеанс Xinyuan. Используйте /new внутри существующего топика, только если хотите заменить его текущий сеанс."
-    new_header: "В этом топике начат новый сеанс Xinyuan.\n\nСовет: для параллельной работы откройте «Все сообщения» и отправьте сообщение туда, чтобы создать отдельный топик, вместо /new здесь. /new заменяет сеанс, привязанный к текущему топику."
-    help: "/topic — включить многосеансовый режим в ЛС (один бот, много параллельных чатов)\n\nИспользование:\n  /topic             Включить режим топиков или показать статус, если он уже включён\n  /topic help        Показать это сообщение\n  /topic off         Выключить режим топиков и сбросить привязки топиков\n  /topic <id>        Внутри топика: восстановить предыдущий сеанс по ID\n\nКак это работает:\n1. Выполните /topic один раз в этих ЛС — Xinyuan проверит, что в BotFather\n   включены Threads Settings, и активирует многосеансовый режим.\n2. Нажмите «Все сообщения» вверху бота и отправьте любое сообщение.\n   Telegram создаст для него новый топик; каждый топик —\n   независимый сеанс Xinyuan (новая история, новый контекст).\n3. Корневые ЛС становятся системным лобби — отправляйте туда /topic, /status,\n   /help, /usage. Обычные промпты пишите в топике.\n4. /new внутри топика сбрасывает сеанс только этого топика.\n5. /topic <id> внутри топика восстанавливает в него старый сеанс."
+    default_title: "Чат Mickvvw"
+    root_lobby: "Этот основной чат зарезервирован для системных команд.\n\nЧтобы начать новый чат с Mickvvw, откройте топик «Все сообщения» вверху интерфейса бота и отправьте туда любое сообщение. Telegram создаст для него новый топик; каждый топик работает как независимый сеанс Mickvvw."
+    root_new: "Чтобы начать новый параллельный чат с Mickvvw, откройте топик «Все сообщения» вверху интерфейса бота и отправьте туда любое сообщение. Telegram создаст для него новый топик.\n\nКаждый топик — независимый сеанс Mickvvw. Используйте /new внутри существующего топика, только если хотите заменить его текущий сеанс."
+    new_header: "В этом топике начат новый сеанс Mickvvw.\n\nСовет: для параллельной работы откройте «Все сообщения» и отправьте сообщение туда, чтобы создать отдельный топик, вместо /new здесь. /new заменяет сеанс, привязанный к текущему топику."
+    help: "/topic — включить многосеансовый режим в ЛС (один бот, много параллельных чатов)\n\nИспользование:\n  /topic             Включить режим топиков или показать статус, если он уже включён\n  /topic help        Показать это сообщение\n  /topic off         Выключить режим топиков и сбросить привязки топиков\n  /topic <id>        Внутри топика: восстановить предыдущий сеанс по ID\n\nКак это работает:\n1. Выполните /topic один раз в этих ЛС — Mickvvw проверит, что в BotFather\n   включены Threads Settings, и активирует многосеансовый режим.\n2. Нажмите «Все сообщения» вверху бота и отправьте любое сообщение.\n   Telegram создаст для него новый топик; каждый топик —\n   независимый сеанс Mickvvw (новая история, новый контекст).\n3. Корневые ЛС становятся системным лобби — отправляйте туда /topic, /status,\n   /help, /usage. Обычные промпты пишите в топике.\n4. /new внутри топика сбрасывает сеанс только этого топика.\n5. /topic <id> внутри топика восстанавливает в него старый сеанс."
     system_topic_name: "Система"
-    system_topic_intro: "Системный топик для команд и статуса Xinyuan."
+    system_topic_intro: "Системный топик для команд и статуса Mickvvw."
     setup_image_caption: "BotFather → Bot Settings → Threads Settings"
     no_chat_id: "Не удалось определить ID чата."
     mode_not_enabled: "Многосеансовый режим топиков для этого чата сейчас не включён."
     disable_failed: "Не удалось выключить режим топиков: {error}"
-    mode_disabled: "Многосеансовый режим топиков для этого чата теперь ВЫКЛЮЧЕН.\n\nСуществующие топики в Telegram не удаляются — они просто перестанут работать как независимые сеансы. Корневые ЛС снова работают как обычный чат Xinyuan. Выполните /topic, чтобы включить режим позже."
+    mode_disabled: "Многосеансовый режим топиков для этого чата теперь ВЫКЛЮЧЕН.\n\nСуществующие топики в Telegram не удаляются — они просто перестанут работать как независимые сеансы. Корневые ЛС снова работают как обычный чат Mickvvw. Выполните /topic, чтобы включить режим позже."
     status_enabled: "Многосеансовые топики Telegram включены."
-    status_how_to: "Чтобы начать новый чат с Xinyuan, откройте «Все сообщения» вверху интерфейса бота и отправьте туда любое сообщение. Telegram создаст для него новый топик."
+    status_how_to: "Чтобы начать новый чат с Mickvvw, откройте «Все сообщения» вверху интерфейса бота и отправьте туда любое сообщение. Telegram создаст для него новый топик."
     previous_unlinked: "Предыдущие непривязанные сеансы:"
     restore_one: "Чтобы восстановить один из них:"
     restore_example: "Пример: отправьте /topic {session_id} внутри топика."
@@ -494,7 +494,7 @@ gateway:
     not_your_session: "Этот сеанс не принадлежит данному пользователю Telegram."
     already_linked: "Этот сеанс уже привязан к другому топику Telegram."
     restored: "Сеанс восстановлен: {title}"
-    restored_last_message: "\n\nПоследнее сообщение Xinyuan:\n{text}"
+    restored_last_message: "\n\nПоследнее сообщение Mickvvw:\n{text}"
   undo:
     nothing: "Нечего отменять."
     removed: "↩️ Отменено ходов: {turns} (сообщений: {count}).\nРезервная копия: «{preview}»\nСкопируйте/отредактируйте текст выше и отправьте его, чтобы запросить заново отсюда."
@@ -502,19 +502,19 @@ gateway:
   update:
     platform_not_messaging: "✗ /update доступен только на платформах обмена сообщениями. Выполните `hermes update` в терминале."
     not_git_repo: "✗ Не git-репозиторий — обновление невозможно."
-    hermes_cmd_not_found: "✗ Не удалось найти команду `hermes`. Xinyuan запущен, но команда обновления не нашла исполняемый файл в PATH или через текущий интерпретатор Python. Попробуйте выполнить `hermes update` вручную в терминале."
+    hermes_cmd_not_found: "✗ Не удалось найти команду `hermes`. Mickvvw запущен, но команда обновления не нашла исполняемый файл в PATH или через текущий интерпретатор Python. Попробуйте выполнить `hermes update` вручную в терминале."
     start_failed: "✗ Не удалось запустить обновление: {error}"
-    starting: "☤ Запуск обновления Xinyuan… Я буду транслировать прогресс сюда."
+    starting: "☤ Запуск обновления Mickvvw… Я буду транслировать прогресс сюда."
     reply_failed: "✗ Не удалось отправить ответ процессу обновления: {error}"
     reply_sent: "✓ Отправлено `{label}` процессу обновления."
-    failed_notice: "❌ Обновление Xinyuan не удалось; предыдущая версия продолжает работать. Выполните `hermes update` на хосте, чтобы увидеть полную ошибку, или попробуйте /update позже."
+    failed_notice: "❌ Обновление Mickvvw не удалось; предыдущая версия продолжает работать. Выполните `hermes update` на хосте, чтобы увидеть полную ошибку, или попробуйте /update позже."
     prompt_default: " (по умолчанию: {default})"
     prompt: "☤ **Обновлению нужен ваш ответ:**\n\n{prompt}{default_hint}\n\nОтветьте `{prefix}approve` (да) или `{prefix}deny` (нет), либо введите ответ напрямую."
-    finished: "✅ Обновление Xinyuan завершено."
-    timed_out: "❌ Обновление Xinyuan прервано по тайм-ауту через 30 минут."
-    finished_success: "✅ Обновление Xinyuan успешно завершено."
+    finished: "✅ Обновление Mickvvw завершено."
+    timed_out: "❌ Обновление Mickvvw прервано по тайм-ауту через 30 минут."
+    finished_success: "✅ Обновление Mickvvw успешно завершено."
     last_lines: "{msg}\n\nПоследние строки:\n```\n{tail}\n```"
-    managed_action: "обновить Xinyuan Agent"
+    managed_action: "обновить Mickvvw Agent"
     not_applicable: "✗ `hermes update` не применимо к этой установке ({method}).\nОбновляйте так: {command}"
   usage:
     rate_limits: "⏱️ **Ограничения скорости:** {state}"
@@ -601,7 +601,7 @@ gateway:
     none_value: "нет"
     unknown_value: "неизвестно"
   exec_approval:
-    header: "Xinyuan хочет выполнить команду, требующую вашего одобрения"
+    header: "Mickvvw хочет выполнить команду, требующую вашего одобрения"
     reason_label: "Почему помечена"
     default_reason: "опасная команда"
     smart_deny_line: "Умный DENY: переопределение владельца действует только на эту одну операцию."
@@ -634,7 +634,7 @@ gateway:
     turn_error_detailed: "Извините, произошла ошибка ({error_type}).\n{error_detail}\nПопробуйте ещё раз или используйте /reset, чтобы начать новый сеанс."
     turn_error: "Извините, произошла ошибка."
     context_injection_refused: "Внедрение контекста отклонено."
-    no_home_channel: "📬 Для {platform} не задан домашний канал. В домашний канал Xinyuan доставляет результаты cron-задач и сообщения с других платформ.\n\nВведите {sethome_cmd}, чтобы сделать этот чат домашним каналом, или просто проигнорируйте."
+    no_home_channel: "📬 Для {platform} не задан домашний канал. В домашний канал Mickvvw доставляет результаты cron-задач и сообщения с других платформ.\n\nВведите {sethome_cmd}, чтобы сделать этот чат домашним каналом, или просто проигнорируйте."
   unauthorized:
     action_notice: "Этот бот приватный, и вас нет в его списке разрешённых. Если бот ваш, выполните `hermes pairing approve {platform} <request-id>` на хосте (`hermes pairing list` покажет id)."
     admin_only_can_run: "Вам доступны: "
@@ -662,7 +662,7 @@ gateway:
     bad_request: "⚠️ Сервис ИИ-модели отклонил этот запрос. Попробуйте переформулировать сообщение или используйте /model, чтобы сменить модель."
     connection_interrupted: "⚠️ Соединение с сервисом ИИ-модели прервалось во время запроса — обычно это временно. Используйте /retry, чтобы повторить; если повторяется, выполните `hermes doctor` на хосте."
     unreachable: "⚠️ Сервис ИИ-модели сейчас недоступен — настроенная конечная точка модели не запущена или недостижима. Подождите немного и используйте /retry; если не помогает, выполните `hermes doctor` на хосте."
-    connection_unknown: "⚠️ Xinyuan не смог связаться с сервисом ИИ-модели (SDK не сообщил подробностей). Используйте /retry, чтобы повторить; если не помогает, выполните `hermes doctor` на хосте."
+    connection_unknown: "⚠️ Mickvvw не смог связаться с сервисом ИИ-модели (SDK не сообщил подробностей). Используйте /retry, чтобы повторить; если не помогает, выполните `hermes doctor` на хосте."
     context_overflow: "⚠️ Этот разговор стал слишком длинным, чтобы прочитать его целиком. Используйте /compress, чтобы сократить историю, или /new, чтобы начать новый разговор."
     usage_limit_resets: "⏱️ Достигнут лимит использования сервиса ИИ-модели; он сбросится через {window}. После этого используйте /retry или /model, чтобы сменить модель."
     provider_kept_failing: "⚠️ Сервис ИИ-модели раз за разом отвечал ошибкой. Используйте /retry, чтобы повторить, или /model, чтобы сменить модель. Подробности — в журнале шлюза (`hermes logs`)."
@@ -728,20 +728,20 @@ gateway:
     draining_maintenance: "⏳ Этот агент завершает текущую работу перед обслуживанием и сейчас не принимает новые ходы. Он скоро вернётся — отправьте сообщение чуть позже."
     another_turn_running: "⏳ В этом сеансе ещё выполняется другой ход. Чтобы защитить историю, это сообщение не было обработано. Дождитесь завершения активного хода и отправьте его снова."
     behavior_queue_short: "ставит в очередь на следующий ход"
-    behavior_queue_long: "Пока Xinyuan занят, сообщения будут ставиться в очередь на следующий ход."
+    behavior_queue_long: "Пока Mickvvw занят, сообщения будут ставиться в очередь на следующий ход."
     behavior_steer_short: "корректирует текущий запуск (после следующего вызова инструмента)"
     behavior_steer_long: "Сообщения будут передаваться как корректировки в текущий запуск (после следующего вызова инструмента)."
     behavior_interrupt_short: "прерывает текущий запуск"
-    behavior_interrupt_long: "Пока Xinyuan занят, сообщения будут прерывать текущий запуск."
+    behavior_interrupt_long: "Пока Mickvvw занят, сообщения будут прерывать текущий запуск."
     status: "**Режим ввода при занятости: `{mode}`\nСообщения во время работы: _{behavior}_\nИзменить: `/busy queue`, `/busy steer` или `/busy interrupt`."
     unknown_mode: "Неизвестный режим `{arg}`. Используйте `/busy queue`, `/busy steer` или `/busy interrupt`."
     save_failed: "Не удалось сохранить режим ввода при занятости в конфигурацию. Режим не изменён."
     set: "Режим ввода при занятости: **`{mode}`** (сохранено).\n_{behavior}_"
   pause:
     resumed: "▶️ Работа возобновлена — новые задачи снова принимаются."
-    not_paused: "Xinyuan не был приостановлен."
+    not_paused: "Mickvvw не был приостановлен."
     reason_suffix: " (причина: {reason})"
-    already_paused: "⏸️ Xinyuan уже приостановлен{suffix}. Используйте `/pause off`, чтобы возобновить."
+    already_paused: "⏸️ Mickvvw уже приостановлен{suffix}. Используйте `/pause off`, чтобы возобновить."
     paused: "⏸️ Приостановлено{suffix}. Новая работа cron/kanban/шлюза отложена; уже запущенная завершится как обычно. Используйте `/pause off`, чтобы возобновить."
   queue:
     usage: "Использование: /queue <промпт>"
@@ -828,7 +828,7 @@ gateway:
     task_status_complete: "завершено"
     task_status_error: "ошибка"
     task_line: "- {title} — {status}"
-    task_card_title: "Xinyuan работает"
+    task_card_title: "Mickvvw работает"
   pairing:
     validity_hour: "{hours} ч"
     validity_hours: "{hours} ч"
@@ -837,14 +837,14 @@ gateway:
   shutdown:
     action_shutting_down: "завершает работу"
     action_restarting: "перезапускается"
-    cron_interrupted: "⚠️ Запланированная задача '{job}' была прервана, потому что Xinyuan {action}; результата в этом запуске нет. Она выполнится снова по расписанию, либо запустите её сейчас командой `hermes cron run {job}`, когда Xinyuan вернётся."
-    notice_shutdown: "⚠️ Xinyuan завершает работу — ваша текущая задача будет прервана. Когда он снова будет в сети, отправьте любое сообщение, и я постараюсь продолжить с того места, где мы остановились."
-    notice_restart: "⚠️ Xinyuan перезапускается — ваша текущая задача будет прервана. После перезапуска отправьте любое сообщение, и я постараюсь продолжить с того места, где вы остановились."
+    cron_interrupted: "⚠️ Запланированная задача '{job}' была прервана, потому что Mickvvw {action}; результата в этом запуске нет. Она выполнится снова по расписанию, либо запустите её сейчас командой `hermes cron run {job}`, когда Mickvvw вернётся."
+    notice_shutdown: "⚠️ Mickvvw завершает работу — ваша текущая задача будет прервана. Когда он снова будет в сети, отправьте любое сообщение, и я постараюсь продолжить с того места, где мы остановились."
+    notice_restart: "⚠️ Mickvvw перезапускается — ваша текущая задача будет прервана. После перезапуска отправьте любое сообщение, и я постараюсь продолжить с того места, где вы остановились."
   startup:
-    handoff_thread_title: "Xinyuan — {title}"
+    handoff_thread_title: "Mickvvw — {title}"
     restarted: "♻ Шлюз успешно перезапущен. Ваш сеанс продолжается."
-    free_tier_line: "Инференс: бесплатный уровень Nous (nous/welcome). Войдите, чтобы получить больше: /login"
-    online: "♻️ Шлюз в сети — Xinyuan снова готов к работе."
+    free_tier_line: "Инференс: бесплатный тариф Nous (nous/welcome). Доступность зависит от конфигурации сервиса."
+    online: "♻️ Шлюз в сети — Mickvvw снова готов к работе."
     db_corrupt: "⚠️ Обнаружено повреждение базы данных сеансов. Сообщения могут не сохраняться. Варианты восстановления:\n1. Выполните `hermes {profile_arg}doctor --fix`\n2. Остановите шлюз, затем восстановите:\n   hermes {profile_arg}sessions recover --source {db_path} --inspect-only\n   (если сообщает, что восстановление возможно) hermes {profile_arg}sessions recover --source {db_path} --output recovered-state.db\n   — восстановление сначала делает снимок повреждённого файла; НЕ запускайте `sqlite3 ... \".recover\"` на рабочем state.db — уязвимый CLI sqlite3 может повредить его ещё сильнее\n3. Восстановите из резервной копии в {backups_dir}/\nВыполните `hermes {profile_arg}doctor` для очищенной диагностики."
     db_fts_corrupt: "⚠️ База данных сеансов сообщила об ошибке повреждения, ограниченной поисковым индексом (FTS5); таблицы сообщений не повреждены. Сообщения могут не сохраняться до починки: выполните `hermes {profile_arg}doctor --fix`, затем перезапустите шлюз. Не запускайте инструменты восстановления и не восстанавливайте резервную копию, пока `hermes {profile_arg}doctor` не подтвердит повреждение."
     db_then_restart: "{action} Затем `hermes {profile_arg}gateway restart`."
@@ -991,7 +991,7 @@ platform:
     transformed_notice: "\n\n[Ответ преобразован после потокового вывода]\n"
   discord:
     approval:
-      question: "Разрешить Xinyuan выполнить эту команду?"
+      question: "Разрешить Mickvvw выполнить эту команду?"
       requested_command_label: "Запрошенная команда:"
       confirm_title: "Подтверждение"
       already_resolved: "Решение по этому одобрению уже принято~"
@@ -1011,7 +1011,7 @@ platform:
       resolved_cancel: "Отменено"
     prompt:
       truncated_marker: "... [обрезано]"
-      clarify_title: "Xinyuan нужен ваш ответ"
+      clarify_title: "Mickvvw нужен ваш ответ"
       clarify_hint_buttons: "Выберите вариант ниже или нажмите ✏️ Другое, чтобы ввести свой ответ."
       clarify_hint_text: "Ответьте в этом канале."
       default_hint: " (по умолчанию: {default})"
@@ -1054,7 +1054,7 @@ platform:
         description: "Начать новый разговор"
         followup: "Новый разговор начат~"
       reset:
-        description: "Сбросить ваш сеанс Xinyuan"
+        description: "Сбросить ваш сеанс Mickvvw"
         followup: "Сеанс сброшен~"
       model:
         description: "Показать или сменить модель"
@@ -1076,10 +1076,10 @@ platform:
       undo:
         description: "Удалить последний обмен сообщениями"
       status:
-        description: "Показать состояние сеанса Xinyuan"
+        description: "Показать состояние сеанса Mickvvw"
         followup: "Состояние отправлено~"
       stop:
-        description: "Остановить работающего агента Xinyuan"
+        description: "Остановить работающего агента Mickvvw"
         followup: "Запрошена остановка~"
       steer:
         description: "Вставить сообщение после следующего вызова инструмента (без прерывания)"
@@ -1115,7 +1115,7 @@ platform:
       update:
         followup: "Обновление запущено~"
       restart:
-        description: "Аккуратно перезапустить шлюз Xinyuan"
+        description: "Аккуратно перезапустить шлюз Mickvvw"
         followup: "Запрошен перезапуск~"
       approve:
         arg_scope: "Необязательно: 'all', 'session', 'always', 'all session', 'all always'"
@@ -1123,9 +1123,9 @@ platform:
         description: "Отклонить ожидающую опасную команду"
         arg_scope: "Необязательно: 'all' — отклонить все ожидающие команды"
       thread:
-        description: "Создать новый тред и начать в нём сеанс Xinyuan"
+        description: "Создать новый тред и начать в нём сеанс Mickvvw"
         arg_name: "Название треда"
-        arg_message: "Необязательное первое сообщение для Xinyuan в треде"
+        arg_message: "Необязательное первое сообщение для Mickvvw в треде"
         arg_auto_archive: "Автоархивация в минутах (60, 1440, 4320, 10080)"
         error_unknown: "неизвестная ошибка"
         failed: "Не удалось создать тред: {error}"
@@ -1148,7 +1148,7 @@ platform:
         arg_question: "Побочный вопрос, на который нужно ответить без прерывания"
         followup: "Побочный вопрос отправлен~"
       skill:
-        description: "Запустить навык Xinyuan"
+        description: "Запустить навык Mickvvw"
         arg_name: "Какой навык запустить"
         arg_args: "Необязательные аргументы для навыка"
         unknown: "Неизвестный навык: `{name}`. Начните вводить, чтобы получить подсказки автодополнения."
@@ -1168,10 +1168,10 @@ platform:
     security:
       unauthorized_slash_alert: "⚠️ Попытка вызова слеш-команды Discord без доступа\nПользователь: {user_name} ({user_id})\nКанал: {chan_id} (сервер {guild_id})\nКоманда: {command_text}\nПричина: {reason}"
     thread:
-      seed_message: "🧵 Тред создан Xinyuan: **{name}**"
-      default_name: "Xinyuan"
-      handoff_seed: "🧵 Передача Xinyuan: **{name}**"
-      auto_create_failed: "⚠️ Xinyuan не смог создать тред Discord для этого сообщения, поэтому запрос не обработан. Пожалуйста, повторите."
+      seed_message: "🧵 Тред создан Mickvvw: **{name}**"
+      default_name: "Mickvvw"
+      handoff_seed: "🧵 Передача Mickvvw: **{name}**"
+      auto_create_failed: "⚠️ Mickvvw не смог создать тред Discord для этого сообщения, поэтому запрос не обработан. Пожалуйста, повторите."
       auto_create_failed_generic: "Запрос не обработан. Пожалуйста, повторите."
     media:
       upload_too_large: "⚠️ Не удалось прикрепить `{filename}` — {size_mb} МБ превышает лимит загрузки Discord {limit_mb} МБ для этого канала. Сжмите файл или поделитесь ссылкой."
@@ -1318,15 +1318,15 @@ platform:
       thinking: "думает..."
       still_working: "всё ещё работает… ({elapsed})"
     task_card:
-      title: "Xinyuan работает"
+      title: "Mickvvw работает"
     slash:
       reply_truncated: "\n\n_[Ответ обрезан: ещё {count} част(и/ей) превысили лимит эфемерных ответов Slack.]_"
       running: "Выполняю `/{command}`…"
     handoff:
-      seed: ":thread: Передача Xinyuan — *{name}*"
+      seed: ":thread: Передача Mickvvw — *{name}*"
   matrix:
     handoff:
-      default_name: "Сеанс Xinyuan"
+      default_name: "Сеанс Mickvvw"
     media:
       image_download_failed: "Не удалось скачать и загрузить изображение в Matrix. Исходный URL не показан, так как может содержать приватные токены."
     approval:
@@ -1384,7 +1384,7 @@ platform:
       header: "Вопрос"
       question: "❓ {question}"
     typing:
-      thinking: "Xinyuan думает…"
+      thinking: "Mickvvw думает…"
       interrupted: "(прервано)"
       no_reply: "(нет ответа)"
     attachment_fallback:
@@ -1445,13 +1445,13 @@ platform:
       size_downgraded: "{label}: размер {size_mb} МБ превышает лимит {cap}; отправлено как файл."
   email:
     image_line: "Изображение: {url}"
-    standalone_subject: "Xinyuan Agent"
+    standalone_subject: "Mickvvw Agent"
   dingtalk:
     emotion:
       thinking: "🤔Думаю"
       done: "🥳Готово"
   irc:
-    quit_message: "Xinyuan Agent завершает работу"
+    quit_message: "Mickvvw Agent завершает работу"
     standalone_quit: "доставлено"
   relay:
     confirm_approve_once: "Одобрить один раз"
@@ -1473,7 +1473,7 @@ slash:
   sethome:
     description: "Сделать этот чат домашним каналом"
   update:
-    description: "Обновить Xinyuan Agent до последней версии"
+    description: "Обновить Mickvvw Agent до последней версии"
   category:
     session: "Сеанс"
     configuration: "Конфигурация"
@@ -1491,7 +1491,7 @@ slash:
     plugin_default_desc: "Выполнить /{name}"
     plugin_command_desc: "Команда плагина"
   hermes:
-    description: "Обратиться к Xinyuan или выполнить подкоманду"
+    description: "Обратиться к Mickvvw или выполнить подкоманду"
   start:
     description: "Принимать стартовые пинги платформы без ответа"
   new:
@@ -1525,7 +1525,7 @@ slash:
   rollback:
     description: "Показать или восстановить контрольные точки файловой системы (ваши ручные правки сохраняются; --all перезаписывает их)"
   snapshot:
-    description: "Создать или восстановить снимки конфигурации и состояния Xinyuan"
+    description: "Создать или восстановить снимки конфигурации и состояния Mickvvw"
   export:
     description: "Экспортировать профиль (конфигурация, навыки, тема) в архив для обмена"
   import:
@@ -1547,7 +1547,7 @@ slash:
   steer:
     description: "Вставить сообщение после следующего вызова инструмента, не прерывая работу"
   goal:
-    description: "Задать постоянную цель, над которой Xinyuan работает между ходами до её достижения"
+    description: "Задать постоянную цель, над которой Mickvvw работает между ходами до её достижения"
   heartbeat:
     description: "Задать повторяющийся промпт, который возвращается в этот сеанс при простое"
   refine:
@@ -1559,7 +1559,7 @@ slash:
   plan:
     description: "Написать план реализации в markdown в .hermes/plans/, ничего не выполняя"
   initiate-setup:
-    description: "Запустить первичную настройку: узнать о вас и настроить Xinyuan под вас"
+    description: "Запустить первичную настройку: узнать о вас и настроить Mickvvw под вас"
   moa:
     description: "Прогнать один промпт через пресет Mixture of Agents по умолчанию, затем вернуть вашу модель"
   subgoal:
@@ -1613,9 +1613,9 @@ slash:
   voice:
     description: "Переключить голосовой режим"
   wake:
-    description: "Переключить прослушивание пробуждающей фразы 'Hey Xinyuan'"
+    description: "Переключить прослушивание пробуждающей фразы 'Hey Mickvvw'"
   busy:
-    description: "Настроить поведение сообщений, пока Xinyuan работает"
+    description: "Настроить поведение сообщений, пока Mickvvw работает"
   tools:
     description: "Управлять инструментами: /tools [list|disable|enable] [имя...]"
   toolsets:
@@ -1681,7 +1681,7 @@ slash:
   image:
     description: "Прикрепить локальный файл изображения к следующему промпту"
   version:
-    description: "Показать версию Xinyuan Agent"
+    description: "Показать версию Mickvvw Agent"
   debug:
     description: "Загрузить отладочный отчёт (сведения о системе + логи) и получить ссылки для обмена"
   quit:
@@ -1739,8 +1739,8 @@ cli:
     no_saved_card_add_funds_hint: "Сохранённой карты нет — «Добавить средства» поможет её привязать."
     actions_require_admin: "Для операций с оплатой нужны права администратора или владельца организации."
     remote_spending_off_for_org: "Удалённые платежи отключены для этой организации."
-    killswitch_reason_overview: "Администратор биллинга может включить их на странице Xinyuan Agent портала, чтобы добавлять средства отсюда."
-    killswitch_reason_buy: "Администратор биллинга может включить их на странице Xinyuan Agent портала перед добавлением средств."
+    killswitch_reason_overview: "Администратор биллинга может включить их на странице Mickvvw Agent портала, чтобы добавлять средства отсюда."
+    killswitch_reason_buy: "Администратор биллинга может включить их на странице Mickvvw Agent портала перед добавлением средств."
     add_funds_now_hint: "Добавить средства сейчас — разовое списание, зачисляется на баланс сегодня."
     refill_when_low_amounts: "Пополнять при низком балансе — автоматически списывает {reload_to}, когда баланс опускается ниже {threshold}."
     refill_when_low_generic: "Пополнять при низком балансе — автоматически списывает с карты, когда баланс опускается ниже заданной вами суммы."
@@ -1796,7 +1796,7 @@ cli:
     charge_failed_card_declined: "🔴 Ваша карта отклонена. Попробуйте другую карту на портале."
     charge_failed_generic: "🔴 Платёж не прошёл ({reason})."
     charge_error_no_payment_method: "💳 Карта не добавлена — пополните баланс и управляйте оплатой на портале."
-    charge_error_remote_spending_disabled: "Удалённые платежи отключены для этого аккаунта — администратор биллинга может включить их на странице Xinyuan Agent портала."
+    charge_error_remote_spending_disabled: "Удалённые платежи отключены для этого аккаунта — администратор биллинга может включить их на странице Mickvvw Agent портала."
     charge_error_role_required: "Для добавления средств нужны права администратора или владельца организации. Обратитесь к администратору или управляйте оплатой на портале."
     charge_error_idempotency_conflict: "🔴 Этот ключ платежа уже использован для другой суммы. Начните пополнение заново."
     revoked_by_admin: "Администратор остановил платежи из этого терминала."
@@ -1813,7 +1813,7 @@ cli:
     charge_stepup_noninteractive: "Выполните `hermes portal`, разрешите удалённые платежи и повторите попытку."
     charge_stepup_declined: "Платёж не выполнен. Выполните /topup, когда захотите разрешить удалённые платежи."
     charge_stepup_not_granted: "Не удалось разрешить удалённые платежи — их должен одобрить администратор или владелец организации. Средства с карты не списаны."
-    allowed_but_org_off: "Удалённые платежи разрешены для этого терминала, но всё ещё отключены для этой организации. Администратор биллинга может включить их на странице Xinyuan Agent портала, после чего выполните /topup снова."
+    allowed_but_org_off: "Удалённые платежи разрешены для этого терминала, но всё ещё отключены для этой организации. Администратор биллинга может включить их на странице Mickvvw Agent портала, после чего выполните /topup снова."
     allowed_no_card: "Удалённые платежи разрешены — но карта пока не добавлена."
     topup_on_portal_to_continue: "Чтобы продолжить, пополните баланс и настройте оплату на портале."
     allowed_run_topup: "Remote Spending разрешён. Выполните /topup, чтобы продолжить."
@@ -1969,7 +1969,7 @@ cli:
     usage_switch_provider: "переключить провайдера"
     usage_refresh: "заново загрузить актуальные списки моделей"
     choice_switch_anyway: "Всё равно переключить"
-    desc_switch_anyway: "Использовать эту модель в текущем сеансе Xinyuan."
+    desc_switch_anyway: "Использовать эту модель в текущем сеансе Mickvvw."
     choice_cancel: "Отмена"
     desc_keep_current_model: "Оставить текущую модель."
     switch_cancelled: "Переключение модели отменено."
@@ -2117,7 +2117,7 @@ cli:
     images_attached_one: "📎 {count} изображение прикреплено"
     images_attached_other: "📎 Изображений прикреплено: {count}"
     command_interrupted: "Команда прервана."
-    welcome: "Добро пожаловать в Xinyuan Agent! Введите сообщение или /help для списка команд."
+    welcome: "Добро пожаловать в Mickvvw Agent! Введите сообщение или /help для списка команд."
     activated_skills_label: "Активированные навыки:"
     redaction_disabled_title: "⚠  Скрытие секретов ВЫКЛЮЧЕНО"
     redaction_disabled_body: "(HERMES_REDACT_SECRETS={value}). API-ключи и токены могут появляться в открытом виде в выводе чата, JSON-файлах сеансов и логах. Чтобы включить снова, задайте {setting} в config.yaml."
@@ -2129,7 +2129,7 @@ cli:
     err_termux_app_missing: "Обнаружен пакет команд Termux:API, но Android-приложение отсутствует.\nУстановите/обновите Android-приложение Termux:API, затем повторите /voice on."
     err_mic_access: "Голосовому режиму нужен доступ к микрофону.\nВыполните pkg install termux-api и установите Android-приложение Termux:API, затем повторите /voice on."
     err_audio_capture: "Голосовой режим требует захвата звука."
-    err_stt_provider: "Голосовому режиму нужен STT-провайдер для расшифровки.\nВыполните hermes tools и настройте Speech-to-Text, затем перезапустите Xinyuan."
+    err_stt_provider: "Голосовому режиму нужен STT-провайдер для расшифровки.\nВыполните hermes tools и настройте Speech-to-Text, затем перезапустите Mickvvw."
     silence_autostop: "Обнаружена тишина, автоматическая остановка..."
     hint_continuous: "автостоп по тишине | {shortcut} — остановить и выйти из непрерывного режима"
     hint_termux: "Захват через Termux:API | {shortcut} — остановить"
@@ -2183,7 +2183,7 @@ cli:
     label_surface: "  Поверхность: {surface}"
     label_new_session: "  Новый сеанс: {value}"
     mic_silent_warning: "⚠ Микрофон передаёт только тишину — слушатель ничего не слышит."
-    mic_silent_macos_hint: "На macOS: Системные настройки > Конфиденциальность и безопасность > Микрофон — разрешите доступ терминалу/Xinyuan, затем /wake off + /wake on."
+    mic_silent_macos_hint: "На macOS: Системные настройки > Конфиденциальность и безопасность > Микрофон — разрешите доступ терминалу/Mickvvw, затем /wake off + /wake on."
     wake_enable_hint: "Включите командой /wake on"
     enable_first_hint: "Сначала включите голосовой режим: /voice on"
     tts_no_provider: "Предупреждение: нет доступного TTS-провайдера. Установите edge-tts или задайте API-ключи."
@@ -2197,7 +2197,7 @@ cli:
   render:
     response_transformed: "[Ответ преобразован после потоковой передачи]"
     banner_tagline: "{name} — фреймворк ИИ-агентов"
-    banner_version: "Xinyuan Agent v{version} ({date})"
+    banner_version: "Mickvvw Agent v{version} ({date})"
   subagents:
     cannot_steer_process: "Фоновые процессы нельзя корректировать; остановите их или прочитайте лог."
     count_live: "активных: {count}"
@@ -2279,7 +2279,7 @@ cli:
     failed: "Не удалось подключиться"
     authorized_no_tools: "Авторизовано. Инструменты недоступны."
     connected: "Подключено"
-    named_account: "Xinyuan назвал этот аккаунт {name} «{alias}». Его можно переименовать в любое время."
+    named_account: "Mickvvw назвал этот аккаунт {name} «{alias}». Его можно переименовать в любое время."
     waiting: "Ожидание…"
   editor:
     only_interactive: "Внешний редактор доступен только в интерактивном CLI."
@@ -2479,7 +2479,7 @@ cli:
     yolo_bypass_suffix: " (активен обход YOLO)"
     ctx_left_prefix: "осталось {percent}% · "
     ctx_tokens_used: "{left}использовано токенов: {used} / {max}"
-    status_title: "Состояние Xinyuan CLI"
+    status_title: "Состояние Mickvvw CLI"
     label_reasoning: "Рассуждения"
     label_approvals: "Одобрения"
     label_context: "Контекст"
@@ -2622,9 +2622,9 @@ cli:
       short_queue: "ставит в очередь на следующий ход"
       short_steer: "корректирует текущий запуск (после следующего вызова инструмента)"
       short_interrupt: "немедленно перенаправляет текущий запуск"
-      long_queue: "Enter поставит ваш ввод в очередь, пока Xinyuan занят."
+      long_queue: "Enter поставит ваш ввод в очередь, пока Mickvvw занят."
       long_steer: "Enter передаст ваше сообщение как корректировку в текущий запуск (после следующего вызова инструмента)."
-      long_interrupt: "Enter перенаправит текущий запуск, пока Xinyuan занят; /stop по-прежнему отменяет его."
+      long_interrupt: "Enter перенаправит текущий запуск, пока Mickvvw занят; /stop по-прежнему отменяет его."
       usage: "Использование: /busy [queue|steer|interrupt|status]"
       status: "Режим ввода при занятости: {mode}"
       enter_while_busy: "Enter при занятости: {behavior}"
@@ -2696,7 +2696,7 @@ cli:
       stat_hint: "выполните /diff --stat для сводки"
       stat_hint_session: "выполните /diff session --stat для сводки"
       not_enabled: "Контрольные точки выключены, поэтому базового состояния сеанса нет.\nВключите: hermes --checkpoints\nИли в config.yaml: checkpoints: { enabled: true }\n(Обычный /diff по-прежнему работает — он использует git напрямую.)"
-      no_session_changes: "Изменений нет — Xinyuan здесь ещё не редактировал файлы."
+      no_session_changes: "Изменений нет — Mickvvw здесь ещё не редактировал файлы."
     rollback:
       not_enabled: "Контрольные точки выключены.\nВключите: hermes --checkpoints\nИли в config.yaml: checkpoints: { enabled: true }"
       none_here_showing_all: "Нет контрольных точек для {cwd} — показаны все каталоги."
@@ -3022,7 +3022,7 @@ cli:
       prompt_required: "Использование: /heartbeat every <интервал> <промпт> — промпт обязателен."
       invalid_label: "Недопустимый heartbeat"
       set: "♥ Heartbeat задан (каждые {interval}): {prompt}"
-      set_note: "Срабатывает как обычный ход, когда сеанс простаивает и интервал истёк. Управление: /heartbeat pause | resume | clear; живёт только пока работает этот процесс Xinyuan — для постоянных расписаний используйте `hermes cron`."
+      set_note: "Срабатывает как обычный ход, когда сеанс простаивает и интервал истёк. Управление: /heartbeat pause | resume | clear; живёт только пока работает этот процесс Mickvvw — для постоянных расписаний используйте `hermes cron`."
     refine:
       nothing_yet: "Пока нечего уточнять — сначала отправьте сообщение."
       empty: "Пока нечего уточнять — разговор пуст."
@@ -3076,12 +3076,12 @@ cli:
       usage: "/timestamps [on|off|status]"
       label: "Метки времени сообщений"
     update:
-      managed_action: "обновить Xinyuan Agent"
+      managed_action: "обновить Mickvvw Agent"
       choice_update: "Обновить сейчас"
-      choice_update_desc: "выйти из текущего сеанса и обновить Xinyuan Agent"
+      choice_update_desc: "выйти из текущего сеанса и обновить Mickvvw Agent"
       choice_cancel: "Отмена"
       choice_cancel_desc: "оставить текущий сеанс"
-      title: "☤  Обновить Xinyuan Agent"
+      title: "☤  Обновить Mickvvw Agent"
       detail: "Текущий сеанс будет завершён, затем запустится `hermes update`."
       cancelled: "🟡 /update отменено."
       launching: "☤ Запускаю обновление..."
@@ -3096,12 +3096,12 @@ cli:
   tip_line: "✦ Совет: {tip}"
   banner:
     context_too_low: "⚠️  Длина контекста всего {tokens} токенов — этого, скорее всего, слишком мало для работы агента с инструментами."
-    context_minimum: "Xinyuan нужно не менее {tokens} токенов. Схемы инструментов и системный промпт занимают большой фиксированный префикс."
+    context_minimum: "Mickvvw нужно не менее {tokens} токенов. Схемы инструментов и системный промпт занимают большой фиксированный префикс."
     fix_ollama: "Исправление для Ollama: OLLAMA_CONTEXT_LENGTH={tokens} ollama serve"
     fix_lm_studio: "Исправление для LM Studio: задайте длину контекста в настройках модели → перезагрузите модель"
     fix_local_server: "Исправление: запустите сервер с контекстом не менее {tokens_k}K (llama.cpp: -c {tokens}) или задайте model.ollama_num_ctx в config.yaml равным реально обслуживаемому окну"
     fix_config: "Исправление: задайте model.context_length в config.yaml или увеличьте настройку контекста на сервере"
-    hermes_models_not_agentic: "⚠  Модели Nous Research Hermes 3 и 4 НЕ агентные и не предназначены для использования с Xinyuan Agent."
+    hermes_models_not_agentic: "⚠  Модели Nous Research Hermes 3 и 4 НЕ агентные и не предназначены для использования с Mickvvw Agent."
     hermes_models_lack_tools: "У них нет вызова инструментов, необходимого для агентных рабочих процессов. Используйте агентную модель (Claude, GPT, Gemini, DeepSeek и т. д.)."
     hermes_models_switch_hint: "Переключиться: /model sonnet  или  /model gpt5"
     project_skills_loaded: "◆ Из этого репозитория загружено навыков проекта: {count}"
@@ -3151,9 +3151,9 @@ cli:
     the_provider: "провайдер"
     the_current_model: "текущая модель"
     with_details: "{lead}\nПодробности: {details}"
-    agent_init_failed: "Xinyuan не удалось установить соединение с моделью: {error}. Ваше сообщение не отправлено. Выполните `hermes doctor` для проверки настройки или /model, чтобы выбрать другого провайдера."
+    agent_init_failed: "Mickvvw не удалось установить соединение с моделью: {error}. Ваше сообщение не отправлено. Выполните `hermes doctor` для проверки настройки или /model, чтобы выбрать другого провайдера."
   gateway:
-    starting: "Запуск шлюза Xinyuan (платформы обмена сообщениями)..."
+    starting: "Запуск шлюза Mickvvw (платформы обмена сообщениями)..."
   gateway_status:
     header: "(✿◠‿◠) Состояние шлюза"
     platform_config_header: "Конфигурация платформ обмена сообщениями:"
@@ -3468,15 +3468,15 @@ explainer:
   persistence:
     compression: "ход остановлен, потому что другой процесс сжимал этот сеанс. Ваше сообщение уже должно быть сохранено — отправьте его ещё раз после завершения сжатия."
     compression_closed: "ход остановлен, потому что этот сеанс был ротирован сжатием контекста, а его живое продолжение не удалось подхватить. Само хранилище в порядке — обновите клиент (или начните новый ход), чтобы он подхватил новый id сеанса, затем отправьте сообщение ещё раз."
-    turn_lease: "ход остановлен, потому что другой процесс Xinyuan перехватил этот сеанс. Ваш ответ не был сохранён — дождитесь завершения другого процесса, затем отправьте сообщение ещё раз."
-    session_row_missing: "этот сеанс был удалён из хранилища, пока чат был ещё открыт, и Xinyuan не смог его пересоздать, поэтому это сообщение не сохранено. Отправьте сообщение ещё раз; если ошибка повторяется, запустите `hermes {profile_arg}doctor`."
-    locked: "ход остановлен, потому что хранилище сеансов было занято (другой процесс Xinyuan записывал в базу состояния). Ваше сообщение уже должно быть сохранено — отправьте его ещё раз чуть позже."
-    replaced: "файл базы данных сеансов был заменён во время работы Xinyuan, поэтому это сообщение не сохранено (копия хранится в {home}/sessions/). Остановите Xinyuan (`hermes {profile_arg}gateway stop`), запустите `hermes {profile_arg}doctor` — не `hermes {profile_arg}doctor --fix`, который починил бы не тот файл на месте, — затем запустите снова и отправьте сообщение ещё раз. Подробные шаги восстановления есть в логе."
-    deleted_wal: "другой процесс Xinyuan всё ещё держит старую копию журнала упреждающей записи базы сеансов, поэтому Xinyuan прекратил запись ради сохранности файла, и это сообщение не сохранено (копия хранится в {home}/sessions/). Ничего не потеряно. Закройте все процессы Xinyuan этого профиля (приложение Desktop, `hermes {profile_arg}gateway stop`, панель управления, cron), запустите `hermes {profile_arg}doctor` — он назовёт процесс, который ещё держит журнал, — затем запустите Xinyuan снова и отправьте сообщение ещё раз. Не запускайте `doctor --fix` и не удаляйте файлы state.db, пока они работают. Руководство: {recovery_docs}"
+    turn_lease: "ход остановлен, потому что другой процесс Mickvvw перехватил этот сеанс. Ваш ответ не был сохранён — дождитесь завершения другого процесса, затем отправьте сообщение ещё раз."
+    session_row_missing: "этот сеанс был удалён из хранилища, пока чат был ещё открыт, и Mickvvw не смог его пересоздать, поэтому это сообщение не сохранено. Отправьте сообщение ещё раз; если ошибка повторяется, запустите `hermes {profile_arg}doctor`."
+    locked: "ход остановлен, потому что хранилище сеансов было занято (другой процесс Mickvvw записывал в базу состояния). Ваше сообщение уже должно быть сохранено — отправьте его ещё раз чуть позже."
+    replaced: "файл базы данных сеансов был заменён во время работы Mickvvw, поэтому это сообщение не сохранено (копия хранится в {home}/sessions/). Остановите Mickvvw (`hermes {profile_arg}gateway stop`), запустите `hermes {profile_arg}doctor` — не `hermes {profile_arg}doctor --fix`, который починил бы не тот файл на месте, — затем запустите снова и отправьте сообщение ещё раз. Подробные шаги восстановления есть в логе."
+    deleted_wal: "другой процесс Mickvvw всё ещё держит старую копию журнала упреждающей записи базы сеансов, поэтому Mickvvw прекратил запись ради сохранности файла, и это сообщение не сохранено (копия хранится в {home}/sessions/). Ничего не потеряно. Закройте все процессы Mickvvw этого профиля (приложение Desktop, `hermes {profile_arg}gateway stop`, панель управления, cron), запустите `hermes {profile_arg}doctor` — он назовёт процесс, который ещё держит журнал, — затем запустите Mickvvw снова и отправьте сообщение ещё раз. Не запускайте `doctor --fix` и не удаляйте файлы state.db, пока они работают. Руководство: {recovery_docs}"
     corrupt: "ход остановлен, потому что база состояния сообщила о структурном повреждении (транскрипт был бы утерян при перезапуске). Освобождение места на диске не поможет. Варианты восстановления:\n1. Запустите `hermes {profile_arg}doctor --fix`\n2. Остановите шлюз, затем восстановите командой:\n   hermes {profile_arg}sessions recover --source {db_path} --inspect-only\n   (если она сообщает, что восстановление возможно) hermes {profile_arg}sessions recover --source {db_path} --output recovered-state.db\n   — восстановление сначала делает снимок повреждённого файла; НЕ запускайте `sqlite3 ... \".recover\"` на живом state.db: уязвимая версия sqlite3 CLI может повредить его ещё сильнее\n3. Восстановите из резервной копии в {backups_dir}/\nЗатем отправьте сообщение ещё раз."
-    fts_index: "ход остановлен, потому что индекс поиска по сеансам (FTS5) повреждён и его не удалось отключить, поэтому это сообщение не сохранено. Само хранилище сообщений не повреждено: не запускайте инструменты восстановления и не откатывайтесь на резервную копию. Запустите `hermes {profile_arg}doctor --fix` (или перезапустите Xinyuan — индекс восстанавливается при открытии), затем отправьте сообщение ещё раз."
-    disk: "Xinyuan не смог сохранить этот разговор на диск и остановился, чтобы не потерять ваши сообщения. Скорее всего, диск переполнен: освободите место (или исправьте права доступа к {home}/state.db), затем отправьте сообщение ещё раз."
-    default: "Xinyuan не смог сохранить этот разговор и остановился, чтобы не потерять ваши сообщения. Возможные причины: на диске закончилось место или базу данных держит другой процесс Xinyuan. Закройте другие окна Xinyuan, запустите `hermes {profile_arg}doctor` для проверки хранилища, затем отправьте сообщение ещё раз."
+    fts_index: "ход остановлен, потому что индекс поиска по сеансам (FTS5) повреждён и его не удалось отключить, поэтому это сообщение не сохранено. Само хранилище сообщений не повреждено: не запускайте инструменты восстановления и не откатывайтесь на резервную копию. Запустите `hermes {profile_arg}doctor --fix` (или перезапустите Mickvvw — индекс восстанавливается при открытии), затем отправьте сообщение ещё раз."
+    disk: "Mickvvw не смог сохранить этот разговор на диск и остановился, чтобы не потерять ваши сообщения. Скорее всего, диск переполнен: освободите место (или исправьте права доступа к {home}/state.db), затем отправьте сообщение ещё раз."
+    default: "Mickvvw не смог сохранить этот разговор и остановился, чтобы не потерять ваши сообщения. Возможные причины: на диске закончилось место или базу данных держит другой процесс Mickvvw. Закройте другие окна Mickvvw, запустите `hermes {profile_arg}doctor` для проверки хранилища, затем отправьте сообщение ещё раз."
   file_mutation:
     header: "⚠️ Проверка изменений файлов: {count} правок файлов в этом ходе НЕ УДАЛИСЬ, что бы ни говорилось в тексте выше. Запустите `git status` или `read_file`, чтобы проверить, что реально применилось."
     entry: "  • `{path}` — [{tool}] {preview}"
@@ -3527,7 +3527,7 @@ tips:
   t040: "Комбинируйте несколько ссылок: \"Проверь @file:main.py и @file:test.py на согласованность.\""
   t041: "Alt+Enter вставляет перенос строки для многострочного ввода. (Windows Terminal перехватывает Alt+Enter — используйте Ctrl+Enter.)"
   t042: "Ctrl+C прерывает агента. Нажмите дважды в течение 2 секунд для принудительного выхода."
-  t043: "Ctrl+Z сворачивает Xinyuan в фон — выполните fg в оболочке, чтобы вернуться."
+  t043: "Ctrl+Z сворачивает Mickvvw в фон — выполните fg в оболочке, чтобы вернуться."
   t044: "Tab принимает серый текст автоподсказки или дополняет слеш-команды."
   t045: "Введите новое сообщение, пока агент работает, чтобы прервать его и перенаправить."
   t046: "Alt+V вставляет изображение из буфера обмена в разговор."
@@ -3542,7 +3542,7 @@ tips:
   t055: "hermes chat --checkpoints включает снимки файловой системы перед каждым разрушительным изменением файлов."
   t056: "hermes --yolo отключает все запросы одобрения опасных команд на весь сеанс."
   t057: "hermes chat --source telegram помечает сеанс, чтобы его можно было отфильтровать в hermes sessions list."
-  t058: "hermes -p work chat запускает Xinyuan под указанным профилем, не меняя профиль по умолчанию."
+  t058: "hermes -p work chat запускает Mickvvw под указанным профилем, не меняя профиль по умолчанию."
   t059: "hermes doctor --fix диагностирует и автоматически исправляет проблемы с конфигурацией и зависимостями."
   t060: "hermes dump выводит компактную сводку по вашей установке — удобно для отчётов об ошибках."
   t061: "hermes config set KEY VALUE автоматически записывает секреты в .env, а всё остальное — в config.yaml."
@@ -3556,15 +3556,15 @@ tips:
   t069: "hermes skills tap add myorg/skills-repo добавляет собственный источник навыков на GitHub."
   t070: "hermes skills snapshot export setup.json экспортирует конфигурацию навыков для резервной копии или обмена."
   t071: "hermes mcp add github --command npx добавляет MCP-серверы из командной строки."
-  t072: "hermes mcp serve запускает сам Xinyuan как MCP-сервер для других агентов."
+  t072: "hermes mcp serve запускает сам Mickvvw как MCP-сервер для других агентов."
   t073: "hermes auth add позволяет добавить несколько API-ключей для ротации пула учётных данных."
   t074: "hermes completion bash >> ~/.bashrc включает автодополнение по Tab для всех команд и профилей."
   t075: "hermes logs -f показывает agent.log в реальном времени. --level WARNING --since 1h фильтрует вывод."
-  t076: "hermes backup создаёт zip-архив со всем домашним каталогом Xinyuan."
+  t076: "hermes backup создаёт zip-архив со всем домашним каталогом Mickvvw."
   t077: "hermes profile create coder создаёт изолированный профиль, который становится отдельной командой."
   t078: "hermes profile create work --clone копирует текущую конфигурацию и ключи в новый профиль."
   t079: "hermes update автоматически синхронизирует новые встроенные навыки во ВСЕ профили."
-  t080: "hermes gateway install настраивает Xinyuan как системную службу (systemd/launchd)."
+  t080: "hermes gateway install настраивает Mickvvw как системную службу (systemd/launchd)."
   t081: "hermes memory setup позволяет настроить внешний провайдер памяти (Honcho, Mem0 и др.)."
   t082: "hermes webhook subscribe создаёт событийные webhook-маршруты с проверкой HMAC."
   t083: "Экономьте: hermes tools отключает неиспользуемые инструменты, hermes skills config сокращает набор навыков."
@@ -3591,7 +3591,7 @@ tips:
   t104: "Быстрые команды в config.yaml мгновенно выполняют команды оболочки без расхода токенов."
   t105: "Собственные личности можно описать в config.yaml в разделе agent.personalities."
   t106: "provider_routing управляет сортировкой, белым и чёрным списками провайдеров OpenRouter."
-  t107: "execute_code запускает Python-скрипты, программно вызывающие инструменты Xinyuan, — результаты не попадают в контекст."
+  t107: "execute_code запускает Python-скрипты, программно вызывающие инструменты Mickvvw, — результаты не попадают в контекст."
   t108: "delegate_task по умолчанию запускает до 10 параллельных подагентов (delegation.max_concurrent_children) с изолированными контекстами для параллельной работы."
   t109: "web_extract работает с URL PDF-файлов — передайте любую ссылку на PDF, и он преобразует его в markdown."
   t110: "search_files работает на ripgrep и быстрее grep — используйте его вместо grep в терминале."
@@ -3617,7 +3617,7 @@ tips:
   t130: "Если два профиля случайно используют один и тот же токен бота, второй шлюз блокируется с понятной ошибкой."
   t131: "Сеансы автоматически получают осмысленные названия после первого обмена сообщениями — называть их вручную не нужно."
   t132: "Названия сеансов поддерживают преемственность: \"my project\" → \"my project #2\" → \"my project #3\"."
-  t133: "При выходе Xinyuan выводит команду для возобновления с ID сеанса и статистикой."
+  t133: "При выходе Mickvvw выводит команду для возобновления с ID сеанса и статистикой."
   t134: "hermes sessions export backup.jsonl экспортирует все сеансы для резервной копии или анализа."
   t135: "hermes -r SESSION_ID возобновляет любой прошлый сеанс по его ID."
   t136: "Память — это замороженный снимок: изменения попадают в системный промпт только при следующем запуске сеанса."
@@ -3641,10 +3641,10 @@ tips:
   t154: "/voice on включает голосовой режим в CLI. Ctrl+B переключает запись в режиме push-to-talk."
   t155: "Потоковый TTS озвучивает предложения по мере их генерации — не нужно ждать полного ответа."
   t156: "Голосовые сообщения в Telegram, Discord, WhatsApp и Slack расшифровываются автоматически."
-  t157: "Xinyuan работает на 21 платформе обмена сообщениями: Telegram, Discord, Slack, WhatsApp, Signal, Matrix, IRC, Microsoft Teams, email и другие."
+  t157: "Mickvvw работает на 21 платформе обмена сообщениями: Telegram, Discord, Slack, WhatsApp, Signal, Matrix, IRC, Microsoft Teams, email и другие."
   t158: "hermes gateway install настраивает шлюз как системную службу, запускающуюся при загрузке."
   t159: "DingTalk использует Stream Mode — вебхуки и публичный URL не нужны."
-  t160: "BlueBubbles подключает iMessage к Xinyuan через локальный сервер на macOS."
+  t160: "BlueBubbles подключает iMessage к Mickvvw через локальный сервер на macOS."
   t161: "Маршруты вебхуков поддерживают проверку HMAC, ограничение частоты запросов и фильтрацию событий."
   t162: "API-сервер предоставляет OpenAI-совместимую конечную точку, работающую с Open WebUI и LibreChat."
   t163: "Режим голосового канала Discord: бот заходит в голосовой канал, расшифровывает речь и отвечает голосом."
@@ -3661,7 +3661,7 @@ tips:
   t174: "Контекст автоматически сжимается при достижении порога — память сбрасывается в хранилище, а история сводится в сводку."
   t175: "По мере заполнения контекста строка состояния становится жёлтой, затем оранжевой, затем красной."
   t176: "SOUL.md — основной файл идентичности агента; отредактируйте его, чтобы задать поведение."
-  t177: "Xinyuan загружает контекст проекта из .hermes.md, AGENTS.md, CLAUDE.md или .cursorrules (первый найденный)."
+  t177: "Mickvvw загружает контекст проекта из .hermes.md, AGENTS.md, CLAUDE.md или .cursorrules (первый найденный)."
   t178: "Файлы AGENTS.md в подкаталогах обнаруживаются постепенно, по мере того как агент переходит в папки."
   t179: "Файлы контекста ограничены 20 000 символами с умной обрезкой начала и конца."
   t180: "Пять браузерных провайдеров: локальный Chromium, Browserbase, Browser Use, Camofox и Firecrawl."
@@ -3692,7 +3692,7 @@ tips:
   t205: "Слеш-команды поддерживают сопоставление по префиксу: /h раскрывается в /help, /mod — в /model."
   t206: "Перетаскивание пути к файлу в терминал автоматически прикрепляет изображения или отправляет файл как контекст."
   t207: ".worktreeinclude в корне репозитория перечисляет игнорируемые git файлы, которые нужно копировать в worktree."
-  t208: "hermes acp запускает Xinyuan как ACP-сервер для интеграции с VS Code, Zed и JetBrains."
+  t208: "hermes acp запускает Mickvvw как ACP-сервер для интеграции с VS Code, Zed и JetBrains."
   t209: "Пользовательские провайдеры: сохраняйте именованные конечные точки в config.yaml в разделе custom_providers."
   t210: "HERMES_EPHEMERAL_SYSTEM_PROMPT внедряет системный промпт, который никогда не сохраняется в историю."
   t211: "credential_pool_strategies поддерживает ротацию fill_first, round_robin, least_used и random."
@@ -3703,11 +3703,11 @@ tips:
   t216: "К cron-задаче можно прикрепить Python-скрипт (--script), чей stdout внедряется в промпт как контекст."
   t217: "Cron-скрипты лежат в ~/.hermes/scripts/ и выполняются до запуска агента — идеально для конвейеров сбора данных."
   t218: "prefill_messages_file в config.yaml внедряет few-shot-примеры в каждый вызов API, не сохраняя их в историю."
-  t219: "SOUL.md полностью заменяет стандартную идентичность агента — перепишите его, чтобы сделать Xinyuan своим."
+  t219: "SOUL.md полностью заменяет стандартную идентичность агента — перепишите его, чтобы сделать Mickvvw своим."
   t220: "SOUL.md при первом запуске автоматически заполняется личностью по умолчанию. Отредактируйте его под себя."
   t221: "/compress <тема> отводит 60–70% бюджета сводки вашей теме и агрессивно сокращает всё остальное."
   t222: "При втором и последующих сжатиях компрессор обновляет предыдущую сводку, а не начинает с нуля."
-  t223: "Перед сбросом сеанса шлюза Xinyuan в фоне автоматически сохраняет важные факты в память."
+  t223: "Перед сбросом сеанса шлюза Mickvvw в фоне автоматически сохраняет важные факты в память."
   t224: "network.force_ipv4: true в config.yaml устраняет зависания на серверах со сломанным IPv6 — патчит socket на лету."
   t225: "Инструмент terminal поясняет распространённые коды выхода: grep, вернувший 1, = «Совпадений не найдено (не ошибка)»."
   t226: "Неудавшиеся команды терминала в переднем плане автоматически повторяются до 3 раз с экспоненциальной задержкой (2с, 4с, 8с)."
@@ -3729,7 +3729,7 @@ tips:
   t242: "Любой сайт может публиковать навыки через /.well-known/skills/index.json — хаб навыков находит их автоматически."
   t243: "Журнал аудита навыков в ~/.hermes/skills/.hub/audit.log фиксирует каждую установку и удаление."
   t244: "Устаревшие git worktree очищаются при запуске автоматически: чистые, полностью слитые деревья удаляются; незакоммиченная или неотправленная работа всегда сохраняется."
-  t245: "Профили изолируют состояние Xinyuan через HERMES_HOME; подпроцессы инструментов на хосте сохраняют ваш настоящий HOME, если terminal.home_mode не равен profile."
+  t245: "Профили изолируют состояние Mickvvw через HERMES_HOME; подпроцессы инструментов на хосте сохраняют ваш настоящий HOME, если terminal.home_mode не равен profile."
   t246: "Переменная окружения HERMES_HOME_MODE (восьмеричная, например 0701) задаёт свои права на каталог для обхода веб-сервером."
   t247: "Контейнерный режим: положите .container-mode в HERMES_HOME — и CLI на хосте автоматически выполнится внутри контейнера."
   t248: "У Ctrl+C пять уровней приоритета: отменить запись → отменить запросы → закрыть выбор → прервать агента → выйти."
@@ -3769,13 +3769,13 @@ tips:
   t282: "Навыки из доверенных репозиториев (NousResearch) получают уровень безопасности 'trusted'; навыки сообщества проходят дополнительное сканирование."
   t283: "Карантин навыков в ~/.hermes/skills/.hub/quarantine/ хранит навыки, ожидающие проверки безопасности."
   t284: "/steer <промпт> вставляет заметку после следующего вызова инструмента — корректируйте направление посреди задачи без прерывания."
-  t285: "/goal <текст> задаёт постоянную цель Ralph-цикла — Xinyuan продолжает ход за ходом, пока судья не скажет, что готово."
-  t286: "/snapshot create [метка] сохраняет полный снимок состояния конфигурации Xinyuan; /snapshot restore <id> позже его возвращает."
+  t285: "/goal <текст> задаёт постоянную цель Ralph-цикла — Mickvvw продолжает ход за ходом, пока судья не скажет, что готово."
+  t286: "/snapshot create [метка] сохраняет полный снимок состояния конфигурации Mickvvw; /snapshot restore <id> позже его возвращает."
   t287: "/copy [N] копирует последний ответ ассистента в буфер обмена, а с числом — N-й ответ с конца."
   t288: "/redraw принудительно перерисовывает весь интерфейс, исправляя сбои терминала после изменения размера tmux или артефактов выделения мышью."
   t289: "/agents (псевдоним /tasks) показывает активных агентов и запущенные фоновые задачи в текущем сеансе."
   t290: "/footer переключает нижний колонтитул шлюза в финальных ответах с моделью, % контекста и cwd."
-  t291: "/busy queue|steer|interrupt определяет, что делает нажатие Enter, пока Xinyuan работает."
+  t291: "/busy queue|steer|interrupt определяет, что делает нажатие Enter, пока Mickvvw работает."
   t292: "/topic в личных сообщениях Telegram включает режим тем с несколькими сеансами под вашим управлением — /topic <id> возвращает прошлые сеансы прямо в чат."
   t293: "/approve session|always выполняет ожидающую опасную команду с выбранным вами уровнем доверия; /deny отклоняет её."
   t294: "/restart аккуратно перезапускает шлюз после завершения активных запусков, а затем уведомляет запросившего, когда всё снова работает."
@@ -3800,7 +3800,7 @@ tips:
   t313: "Ctrl+G или Ctrl+X Ctrl+E в TUI открывает буфер ввода в $EDITOR для длинных многострочных промптов."
   t314: "TUI отображает LaTeX прямо в тексте — $E=mc^2$ превращается в математические символы Unicode вместо сырого TeX."
   t315: "hermes dashboard запускает локальный веб-интерфейс на 127.0.0.1:9119 — данные не покидают localhost."
-  t316: "hermes dashboard встраивает полный TUI Xinyuan в браузер через xterm.js и PTY по WebSocket."
+  t316: "hermes dashboard встраивает полный TUI Mickvvw в браузер через xterm.js и PTY по WebSocket."
   t317: "Положите YAML с двумя цветами палитры в ~/.hermes/dashboard-themes/ — и вся панель сменит оформление."
   t318: "Плагины панели подключаются простым копированием: manifest.json + JS-бандл в ~/.hermes/dashboard-plugins/ — сборка npm не нужна."
   t319: "layoutVariant: cockpit в теме панели добавляет левую полосу шириной 260px, которую плагины могут заполнять через слот sidebar."
@@ -3838,7 +3838,7 @@ tips:
   t351: "hermes chat --source tool помечает программные чаты, чтобы они не засоряли hermes sessions list."
   t352: "hermes dump --show-keys включает замаскированные отпечатки API-ключей для более глубокой отладки с поддержкой."
   t353: "hermes sessions rename <ID> \"новое название\" переименовывает любой прошлый сеанс; hermes sessions delete <ID> удаляет его."
-  t354: "hermes import восстанавливает полный zip-архив резервной копии Xinyuan; экспорты сеансов в JSON/JSONL импортируются со страницы Sessions в панели управления."
+  t354: "hermes import восстанавливает полный zip-архив резервной копии Mickvvw; экспорты сеансов в JSON/JSONL импортируются со страницы Sessions в панели управления."
   t355: "hermes fallback управляет цепочкой fallback_model интерактивно — без ручного редактирования config.yaml."
   t356: "hermes pairing перевыпускает токен сопряжения для личных сообщений — первый написавший после ротации получает доступ к боту."
   t357: "hermes setup проводит новых пользователей через настройку провайдера, ключей и платформ в одном интерактивном сценарии."

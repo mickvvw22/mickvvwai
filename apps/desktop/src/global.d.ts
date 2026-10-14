@@ -4,6 +4,7 @@ import type { TranslucencyState } from '@hermes/shared/translucency'
 
 import type { ChallengeOutcome } from '../electron/challenge-window'
 import type { ScreenshotApi } from '../electron/command-screenshot-types'
+import type { GuardianStatus } from '../electron/guardian'
 import type { HudModifierApi } from '../electron/hud-modifier-types'
 import type { MachineProfile } from '../electron/machine-profile'
 import type { HermesNotification } from '../electron/notification-types'
@@ -640,6 +641,10 @@ declare global {
       /** Restart the app in place — loads the swapped bundle when bundleSwapPending. */
       relaunchApp?: () => Promise<void>
       getRemoteDisplayReason?: () => Promise<string | null>
+      guardian: {
+        getStatus: () => Promise<GuardianStatus | null>
+        setEnabled: (enabled: boolean) => Promise<GuardianStatus | null>
+      }
       updates: {
         check: (opts?: { force?: boolean }) => Promise<DesktopUpdateStatus>
         apply: (opts?: DesktopUpdateApplyOptions) => Promise<DesktopUpdateApplyResult>

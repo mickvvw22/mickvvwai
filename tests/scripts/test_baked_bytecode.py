@@ -41,9 +41,27 @@ def test_bake_fails_closed_on_uncompilable_module(tmp_path):
     silently shipping cold-compile-every-launch bytecode."""
     import subprocess as _sp
     root = _make_payload(tmp_path)
+    (root / MARKER).write_text("unchecked-hash\n")
     (root / "hermes-agent" / "pkg" / "broken.py").write_text("this is (( not python\n")
     with pytest.raises(_sp.CalledProcessError):
         bake_bytecode(root, Path(sys.executable))
+    assert not (root / MARKER).exists()
+
+
+def test_uncovered_uses_staged_interpreter_cache_tag(tmp_path):
+    from scripts.bundles.bytecode import _uncovered
+
+    source_root = tmp_path / "hermes-agent"
+    source_root.mkdir()
+    (source_root / "module.py").write_text("VALUE = 1\n")
+    cache = source_root / "__pycache__" / "module.cpython-314.pyc"
+    cache.parent.mkdir()
+    cache.write_bytes(b"target interpreter cache")
+
+    missing, unparseable = _uncovered(source_root, cache_tag="cpython-314")
+    assert missing == [] and unparseable == 0
+    missing, _ = _uncovered(source_root, cache_tag="cpython-311")
+    assert [path.name for path in missing] == ["module.py"]
 
 
 def test_uncovered_reports_parseable_module_without_pyc(tmp_path):

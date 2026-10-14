@@ -620,7 +620,50 @@ export interface Translations extends NoticeTranslations {
       billing: string
       notifications: string
       vault: string
+      guardian: string
       plugins: string
+    }
+    guardian: {
+      title: string
+      blurb: string
+      switchTitle: string
+      switchDescription: string
+      turnOn: string
+      turnOff: string
+      statusTitle: string
+      statusDescription: string
+      checking: string
+      active: string
+      starting: string
+      inactive: string
+      notRunning: string
+      heartbeatStale: string
+      autostartTitle: string
+      autostartDescription: string
+      enabled: string
+      disabled: string
+      gatewayTitle: string
+      gatewayDescription: string
+      gatewayRunning: string
+      gatewayStarting: string
+      gatewayRecovering: string
+      gatewayStoppedByUser: string
+      gatewayUnavailable: string
+      gatewayNotManaged: string
+      unknown: string
+      heartbeatTitle: string
+      heartbeatDescription: string
+      noHeartbeat: string
+      desktopProcess: string
+      gatewayProcess: string
+      restartCounts: string
+      appRestarts: (count: number) => string
+      gatewayRestarts: (count: number) => string
+      networkNote: string
+      refresh: string
+      unavailable: string
+      unsupported: Record<'unsupported_platform' | 'unpackaged' | 'bundled_runtime_unavailable', string>
+      errors: Record<'autostart_path_conflict' | 'autostart_remove_failed' | 'supervisor_start_failed' | 'genericError', string>
     }
     plugins: {
       title: string
@@ -1248,6 +1291,19 @@ export interface Translations extends NoticeTranslations {
       testFailed: string
       applyFailed: string
       saveFailed: string
+      telegramFilesTitle: string
+      telegramFilesDescription: string
+      telegramCleanupLabel: string
+      telegramCleanupDescription: string
+      telegramRetentionLabel: string
+      telegramRetentionDescription: string
+      telegramStorageNote: string
+      telegramArchiveSupportNote: string
+      telegramFilesSave: string
+      telegramFilesSaving: string
+      telegramFilesSaved: string
+      telegramFilesSaveFailed: string
+      telegramFilesRestartNote: string
       sshTitle: string
       sshDesc: string
       sshTrustHint: string
@@ -3586,6 +3642,7 @@ export interface Translations extends NoticeTranslations {
       fast: string
       ultrafast: string
       useStandardSpeed: string
+      none: string
       effort: string
       minimal: string
       low: string

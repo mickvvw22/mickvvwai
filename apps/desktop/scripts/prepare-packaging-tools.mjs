@@ -22,7 +22,11 @@ export function pinnedPackageRoot(source, name) {
   const installed = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'))
   const lock = JSON.parse(fs.readFileSync(path.join(source, 'package-lock.json'), 'utf8'))
   const key = path.relative(source, directory).split(path.sep).join('/')
-  if (!lock.packages?.[key] || lock.packages[key].version !== installed.version || installed.name !== name) {
+  const isPnpmVirtualStore =
+    key.startsWith('node_modules/.pnpm/') || key.includes('/node_modules/.pnpm/')
+  const lockKey = isPnpmVirtualStore ? `node_modules/${name}` : key
+  const lockEntry = lock.packages?.[lockKey]
+  if (!lockEntry || lockEntry.version !== installed.version || installed.name !== name) {
     throw new Error(`Installed ${name} is not the source's lock-pinned package; prepare Node dependencies first`)
   }
   return directory
@@ -58,6 +62,11 @@ export function ensureCommonJsPackageScope(directory) {
   }
   if (metadata.type === 'commonjs') return
   fs.writeFileSync(packageFile, `${JSON.stringify({ ...metadata, type: 'commonjs' }, null, 2)}\n`)
+}
+
+/** @param {string} directory @returns {void} */
+export function ensureCommonJsToolsetScope(directory) {
+  ensureCommonJsPackageScope(directory)
 }
 
 /**

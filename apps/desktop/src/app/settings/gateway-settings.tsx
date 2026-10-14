@@ -47,6 +47,7 @@ import { cloudTeamChanged, reconnectMovedCloudAgent } from './cloud-team-change'
 import { ConnectionsRegistrySection } from './connections-registry'
 import { CONTROL_TEXT } from './constants'
 import { ManagedUpdatesSection } from './managed-updates-section'
+import { TelegramFileSettings } from './telegram-file-settings'
 import { EmptyState, ListRow, Pill, SettingsContent, SettingsSkeleton, ToggleRow } from './primitives'
 import { SETTING_IDS, settingElementId } from './settings-manifest'
 import { enrichSelectedSshHost, selectSshHost } from './ssh-host-selection'
@@ -186,6 +187,10 @@ export function GatewaySettings({ embedded = false, subpage }: GatewaySettingsPr
 
   if (!embedded && subpage === 'managed-updates') {
     return <GatewayManagedUpdates />
+  }
+
+  if (!embedded && subpage === 'telegram-files') {
+    return <TelegramFileSettings />
   }
 
   return <GatewayConnectionSettings embedded={embedded} standalone={subpage !== undefined} />

@@ -247,6 +247,7 @@ def iter_skills_files(container_base: str = "/root/.hermes") -> list[dict[str, s
 _GENERATED_CACHE = f"cache/{GENERATED_SUBDIR}"
 _CACHE_DIRS: list[tuple[str, str]] = [
     ("cache/documents", "document_cache"),
+    ("cache/telegram_files", "cache/telegram_files"),
     ("cache/images", "image_cache"),
     ("cache/audio", "audio_cache"),
     ("cache/videos", "video_cache"),
@@ -276,7 +277,7 @@ _CACHE_DIRS: list[tuple[str, str]] = [
 
 
 def _cache_dir_roots(container_base: str, *, create_missing: bool) -> Iterator[tuple[Path, str]]:
-    """Yield ``(host_dir, container_root)`` per cache dir; always maps to the *new* container layout."""
+    """Yield cache roots plus any app-scoped Telegram storage, mapped into the current container layout."""
     base = container_base.rstrip("/")
     for new_subpath, old_name in _CACHE_DIRS:
         host_dir = get_hermes_dir(new_subpath, old_name)
@@ -297,6 +298,19 @@ def _cache_dir_roots(container_base: str, *, create_missing: bool) -> Iterator[t
             except OSError:
                 continue  # unwritable home (tests, RO mounts) — skip as before
         yield host_dir, f"{base}/{new_subpath}"
+
+    telegram_root = os.environ.get("HERMES_TELEGRAM_FILES_ROOT", "").strip()
+    if telegram_root:
+        host_dir = Path(os.path.expanduser(telegram_root))
+        if not host_dir.is_dir():
+            if not create_missing:
+                return
+            try:
+                host_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+            except OSError:
+                return
+        if host_dir.is_dir():
+            yield host_dir, f"{base}/telegram_files"
 
 
 def get_cache_directory_mounts(container_base: str = "/root/.hermes") -> list[dict[str, str]]:

@@ -710,6 +710,7 @@ export const en: Translations = {
       gatewayConnection: 'This window',
       gatewayDevices: 'Saved connections',
       gatewayManagedUpdates: 'Remote updates',
+      gatewayTelegramFiles: 'Telegram files',
       gatewayManagedUpdatesUnavailable: 'Remote updates need a desktop version with managed SSH update support.',
       gatewayManagedUpdatesEmpty: 'Add an SSH connection in Saved connections to manage its updates here.',
       keyboardShortcuts: 'Key bindings',
@@ -759,7 +760,59 @@ export const en: Translations = {
       billing: 'Billing',
       notifications: 'Notifications',
       vault: 'Passwords & Logins',
+      guardian: 'One-click Guardian',
       plugins: 'Plugins'
+    },
+    guardian: {
+      title: 'One-click Guardian',
+      blurb: 'A per-user watchdog checks Mickvvw every 15 seconds and can recover the desktop app and its locally managed gateway.',
+      switchTitle: 'Enable Guardian',
+      switchDescription: 'Run the watchdog in the background and start Mickvvw automatically when you sign in.',
+      turnOn: 'Turn on',
+      turnOff: 'Turn off',
+      statusTitle: 'Watchdog status',
+      statusDescription: 'The supervisor heartbeat confirms that monitoring is active.',
+      checking: 'Checking…',
+      active: 'Active',
+      starting: 'Starting',
+      inactive: 'Inactive',
+      notRunning: 'Enabled, but the supervisor is not running',
+      heartbeatStale: 'Heartbeat is stale',
+      autostartTitle: 'Sign-in startup',
+      autostartDescription: 'Uses a per-user desktop autostart entry; it does not change system-wide startup settings.',
+      enabled: 'Enabled',
+      disabled: 'Disabled',
+      gatewayTitle: 'Local gateway',
+      gatewayDescription: 'Only a locally managed gateway can be restarted by Guardian.',
+      gatewayRunning: 'Running',
+      gatewayStarting: 'Starting',
+      gatewayRecovering: 'Recovering',
+      gatewayStoppedByUser: 'Stopped by you',
+      gatewayUnavailable: 'Unavailable',
+      gatewayNotManaged: 'Not managed here',
+      unknown: 'Unknown',
+      heartbeatTitle: 'Last heartbeat',
+      heartbeatDescription: 'Updated by the supervisor while Guardian is enabled.',
+      noHeartbeat: 'No heartbeat yet',
+      desktopProcess: 'Desktop process',
+      gatewayProcess: 'Gateway process',
+      restartCounts: 'Recovery attempts',
+      appRestarts: count => `Desktop ${count}`,
+      gatewayRestarts: count => `Gateway ${count}`,
+      networkNote: 'Guardian runs locally. Recovery may restart the desktop app and its local gateway, which can briefly reconnect messaging platforms; Telegram pairing and approval settings are not changed.',
+      refresh: 'Refresh',
+      unavailable: 'Guardian status is unavailable.',
+      unsupported: {
+        unsupported_platform: 'Guardian is currently supported only on Linux.',
+        unpackaged: 'Guardian is available in packaged builds, not development sessions.',
+        bundled_runtime_unavailable: 'The bundled agent runtime is missing. Rebuild the bundled Mickvvw app to enable Guardian.'
+      },
+      errors: {
+        autostart_path_conflict: 'A different application already owns the Guardian autostart file.',
+        autostart_remove_failed: 'Could not remove the Guardian autostart entry.',
+        supervisor_start_failed: 'Could not start the Guardian supervisor.',
+        genericError: 'Guardian encountered an internal error.'
+      }
     },
     plugins: {
       title: 'Desktop plugins',
@@ -1390,6 +1443,21 @@ export const en: Translations = {
       unavailableDesc:
         'Connection settings can only be changed from the Mickvvw Desktop app on the computer running it.',
       title: 'Gateway Connection',
+      telegramFilesTitle: 'Telegram files',
+      telegramFilesDescription: 'Receive and send file attachments with the Telegram bot. Incoming originals are stored by type, and archives are extracted into a separate folder.',
+      telegramCleanupLabel: 'Automatically clean up extracted files',
+      telegramCleanupDescription:
+        'Only expired extracted folders in app userData are cleaned. Originals and install/sidecar files are never auto-deleted.',
+      telegramRetentionLabel: 'Keep extracted files (days)',
+      telegramRetentionDescription: 'Remove extracted archive folders after this many days (1–3650).',
+      telegramStorageNote:
+        'Writable installs use a Mickvvw-specific sibling folder; otherwise files go to app userData. Cleanup is off by default.',
+      telegramArchiveSupportNote: 'ZIP, TAR, GZ, BZ2 and XZ archives are safely extracted. Hidden files and entries in hidden paths are skipped and never shared; archive formats that cannot be safely inspected stay local only.',
+      telegramFilesSave: 'Save settings',
+      telegramFilesSaving: 'Saving…',
+      telegramFilesSaved: 'Telegram file settings saved.',
+      telegramFilesSaveFailed: 'Could not save Telegram file settings.',
+      telegramFilesRestartNote: 'Restart the Telegram gateway for changes to take effect.',
       envOverride: 'env override',
       intro:
         'Local by default. Use remote when this app should drive a Mickvvw backend elsewhere. Gateway connections are machine-level; profiles are discovered from the gateways you connect.',
@@ -1658,12 +1726,10 @@ export const en: Translations = {
       freeTier: {
         signIn: 'Sign in',
         title: "You're on the Nous free tier",
-        message: 'Sign in with a Nous account to unlock more models and tools.',
-        caption:
-          'Runs on nous/welcome with connectors included. Signing in keeps your connectors and adds the tools that need an account and every other model.',
+        message: 'Available models and tools are shown in the provider list.',
+        caption: 'Uses nous/welcome; connector availability follows the service configuration.',
         name: 'Nous · free tier',
-        footnote:
-          'The free tier has no balance and nothing to pay. Payment and usage appear when you sign in with a Nous account.',
+        footnote: 'Account balance and payment details are not available on the free tier.',
         plan: 'Free tier',
         model: 'Model',
         connectors: 'Connectors',
@@ -3268,7 +3334,8 @@ export const en: Translations = {
       cron: 'Scheduled jobs',
       'telegram-bot': 'Telegram bot setup',
       'cloud-backup': 'Cloud backup',
-      'model-access': 'Model integration'
+      'model-access': 'Model integration',
+      guardian: 'One-click Guardian'
     },
     searchAria: 'Search sessions',
     searchPlaceholder: 'Search sessions…',
@@ -4035,16 +4102,16 @@ export const en: Translations = {
     readyTitle: 'Mickvvw is ready.',
     readyCaption: 'Free · connectors included',
     begin: 'Begin',
-    signInInstead: 'Sign in with a Nous account instead',
+    signInInstead: 'Connect provider account',
     otherProviders: 'Other providers',
-    stripTitle: 'Free Nous inference and connectors are now available.',
-    stripBody: 'Open the model picker to try them, or sign in with a Nous account.',
+    stripTitle: 'Provider status',
+    stripBody: 'View available models in the model picker.',
     openModelPicker: 'Open model picker',
     dismiss: 'Dismiss',
     providerName: 'Nous',
     statusLabel: model => `Nous · ${model}`,
     signIn: 'Sign in',
-    signInHeading: 'Sign in with a Nous account to unlock more models and tools.',
+    signInHeading: 'Connect provider account',
     settingUp: 'Setting up free inference…',
     codeBody: 'Enter this code in your browser to finish signing in.',
     copyLink: 'Copy link',
@@ -4054,7 +4121,7 @@ export const en: Translations = {
     finishingBody: 'Approved in the browser. Collecting your account tokens.',
     signedInAs: email => `Signed in as ${email}`,
     signedIn: 'Signed in.',
-    completedBody: 'Your account now carries inference and tools.',
+    completedBody: 'Account connected. This service provides inference and tools.',
     defaultModel: 'Default model',
     change: 'Change',
     done: 'Done',
@@ -4062,10 +4129,10 @@ export const en: Translations = {
     tryAgain: 'Try again',
     startAgain: 'Start again',
     didNotComplete: "Sign-in didn't finish",
-    rejectedBody: "No problem, you're still on the free Nous service. Sign in whenever you're ready.",
+    rejectedBody: "Sign-in wasn't completed.",
     supersededBody: 'A newer sign-in code replaced this one. Use the newest one, or start again.',
     timedOutHeading: 'That sign-in link has expired',
-    timedOutBody: "Start again whenever you're ready. You're still on the free Nous service.",
+    timedOutBody: 'The sign-in code expired. Start again if needed.',
     retiredBody:
       "Your session ended before the sign-in finished. Mickvvw will start a new one; then sign in again whenever you're ready.",
     errorBody: "Sign-in didn't finish. Try again whenever you're ready.",
@@ -4093,8 +4160,8 @@ export const en: Translations = {
         "Mickvvw couldn't reach the Nous service. Check your internet connection, then tap Try again. Or connect another provider for now.",
       serverError: 'The Nous service had a hiccup. Tap Try again in a moment, or connect another provider for now.',
       powRequired:
-        "The Nous server asked for a proof of work, but that isn't implemented in your Agent yet. Sign in or create a free Nous account to continue.",
-      locked: "This session can't continue without signing in. Sign in or create a free Nous account to keep going.",
+        "The service requested a proof-of-work challenge that this agent does not support. Configure another provider or retry later.",
+      locked: 'Sign-in is required for this session. Connect the required account or choose another provider.',
       generic:
         "Mickvvw couldn't set up free access without signing in. Signing in is free, or connect another provider.",
       signInBelow: 'Signing in is free. Pick Nous below.',
@@ -4153,6 +4220,7 @@ export const en: Translations = {
       ultrafast: 'Ultrafast',
       useStandardSpeed: 'Use standard speed',
       effort: 'Effort',
+      none: 'Off',
       minimal: 'Minimal',
       low: 'Low',
       medium: 'Medium',
@@ -4714,11 +4782,11 @@ export const en: Translations = {
         },
         free_tier_rate_limited: {
           title: "You've used up the allowance for chatting without signing in",
-          body: "It refreshes shortly. Sign in with a Nous account for a bigger allowance, it's free."
+          body: 'The allowance refreshes shortly. Try again later or select another provider.'
         },
         free_tier_at_capacity: {
           title: 'Chatting without signing in is really busy right now',
-          body: "Sign in to skip the queue, it's free, or try again in a little while."
+          body: 'The service is busy right now. Try again in a little while or select another provider.'
         },
         free_tier_model_not_free: {
           title: "That model isn't available without signing in",

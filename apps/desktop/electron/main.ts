@@ -287,6 +287,7 @@ import { resolveGatewayVersion } from './gateway-version'
 import { probeGatewayWebSocket, spawnedBackendProbeOptions } from './gateway-ws-probe'
 import { windowsGitCandidates } from './git-binary-candidates'
 import { registerGitIpc } from './git-ipc'
+import { createGuardianManager } from './guardian'
 import { desktopBackendSpawnEnv, guestOnboardingEnabled } from './guest-onboarding'
 import {
   assertExistingPathForOpen,
@@ -584,6 +585,7 @@ import { createSshIsolatedKeepaliveRegistry } from './ssh-isolated-keepalive'
 import { createSshTeardownTracker } from './ssh-teardown'
 import { createStreamThrottle } from './stream-throttle'
 import { installSystemCaTrust } from './system-ca'
+import { resolveTelegramFileStorageRoot } from './telegram-file-storage-path'
 import { registerTerminalIpc } from './terminal-ipc'
 import { nativeOverlayWidth as computeNativeOverlayWidth, titleBarOverlayOptions } from './titlebar-overlay-width'
 import {
@@ -1295,6 +1297,9 @@ const HERMES_HOME: string = resolveDesktopHermesHome({
   readWindowsHome: (): string | null => readWindowsUserEnvVar('HERMES_HOME')
 })
 
+let guardianManager: ReturnType<typeof createGuardianManager> | null = null
+app.once('will-quit', () => guardianManager?.stopForUser())
+
 // #77311: `desktop.electron_flags` and the renderer heap ceiling
 // (`desktop.renderer_max_old_space_mb`) used to reach Chromium only through
 // the `hermes desktop` launcher's argv, so a packaged app opened from its
@@ -1437,6 +1442,25 @@ const BOOT_FAKE_STEP_MS = (() => {
 })()
 
 const APP_NAME: string = IDENTITY_APP_NAME || process.env.HERMES_DESKTOP_APP_NAME || 'Mickvvw'
+
+const telegramFileStorageRoot = resolveTelegramFileStorageRoot({
+  packaged: IS_PACKAGED,
+  platform: process.platform,
+  resourcesPath: process.resourcesPath,
+  appImagePath: process.env.APPIMAGE,
+  appUserDataPath: app.getPath('userData'),
+  appName: APP_NAME
+})
+
+if (telegramFileStorageRoot.root) {
+  process.env.HERMES_TELEGRAM_FILES_ROOT = telegramFileStorageRoot.root
+  process.env.HERMES_TELEGRAM_FILES_INSTALL_DIR =
+    telegramFileStorageRoot.location === 'install-sidecar' || telegramFileStorageRoot.location === 'install-directory' ? '1' : '0'
+} else {
+  delete process.env.HERMES_TELEGRAM_FILES_ROOT
+  delete process.env.HERMES_TELEGRAM_FILES_INSTALL_DIR
+}
+
 const HUD_WINDOW_TITLE = `${APP_NAME} HUD`
 const TITLEBAR_HEIGHT = 34
 const MACOS_TRAFFIC_LIGHTS_HEIGHT = 14
@@ -18644,6 +18668,15 @@ const terminalIpc = registerTerminalIpc({
 
 const disposeTerminalSession = terminalIpc.disposeTerminalSession
 
+ipcMain.handle('hermes:guardian:get-status', () => guardianManager?.getStatus() ?? null)
+ipcMain.handle('hermes:guardian:set-enabled', async (_event, enabled: unknown) => {
+  if (typeof enabled !== 'boolean' || !guardianManager) {
+    return guardianManager?.getStatus() ?? null
+  }
+
+  return guardianManager.setEnabled(enabled)
+})
+
 ipcMain.handle(
   'hermes:updates:check',
   async (_event: Electron.IpcMainInvokeEvent, opts?: { force?: boolean }): Promise<UpdaterStatusWire> =>
@@ -19421,6 +19454,21 @@ app.whenReady().then(() => {
   // Seed this before the first window exists: a picker can open before
   // startHermes() finishes resolving the configured backend.
   const primaryProfile = primaryProfileKey()
+
+  guardianManager = createGuardianManager({
+    platform: process.platform,
+    packaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    userDataPath: app.getPath('userData'),
+    home: app.getPath('home'),
+    hermesHome: HERMES_HOME,
+    profile: primaryProfile,
+    appCommand: process.env.APPIMAGE || process.execPath,
+    appArgs: process.argv.slice(1),
+    manageGateway: !primaryBackendIsRemote(),
+    environment: process.env
+  })
+  void guardianManager.initialize().catch(() => rememberLog('[guardian] initialization failed'))
 
   setActiveGatewayProfile(primaryProfile)
   setWslBridgeProfileState(primaryProfile, !primaryBackendIsRemote())

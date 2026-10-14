@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
-import { builderNodeOptions, runElectronBuilder } from './run-electron-builder.mjs'
+import { builderNodeOptions, runElectronBuilder, validatePreparedBuilderArgs } from './run-electron-builder.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
 import { publishPackagingInputs } from './prepared-packaging.mjs'
@@ -30,6 +30,22 @@ test('validate-only admits real prepared inputs without launching tools and reje
     assert.equal(cli.status, 0, cli.stderr)
   } finally {
     fs.rmSync(out, { recursive: true, force: true })
+  }
+})
+
+test('prepared builder admits only an existing prepackaged directory', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'builder-prepackaged-'))
+  const appDir = path.join(root, 'linux-unpacked')
+  fs.mkdirSync(appDir)
+  const inputs = { target: `${process.platform}-${process.arch}`, formats: ['dir'] }
+  try {
+    assert.doesNotThrow(() => validatePreparedBuilderArgs(['--dir', '--prepackaged', appDir], inputs))
+    assert.doesNotThrow(() => validatePreparedBuilderArgs(['--dir', `--prepackaged=${appDir}`], inputs))
+    assert.throws(() => validatePreparedBuilderArgs(['--dir', '--prepackaged', path.join(root, 'missing')], inputs),
+      /--prepackaged path does not exist/)
+    assert.throws(() => validatePreparedBuilderArgs(['--dir', '--prepackaged'], inputs), /--prepackaged requires a path/)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
   }
 })
 

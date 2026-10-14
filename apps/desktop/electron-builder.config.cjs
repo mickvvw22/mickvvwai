@@ -57,10 +57,6 @@ const channelRequest = channelBuildRequest()
 
 /** @typedef {import("app-builder-lib").Configuration} Configuration */
 
-const [owner, repo] = (process.env.GITHUB_REPOSITORY || 'NousResearch/hermes-agent').split('/')
-if (!owner || !repo) {
-  throw new Error(`invalid GITHUB_REPOSITORY ${process.env.GITHUB_REPOSITORY}`)
-}
 const electronVersion = require('./package.json').devDependencies.electron
 if (!/^\d+\.\d+\.\d+$/.test(electronVersion)) {
   throw new Error(`invalid electron version ${electronVersion} in package.json`)
@@ -86,20 +82,12 @@ module.exports = {
   // the release pipeline can keep the two apart.
   artifactName: `${store ? 'Store-' : ''}${artifactNamePascal}-\${version}-\${os}-\${arch}.\${ext}`,
   icon: 'assets/icon',
-  // The electron-updater feed. CI builds set CLOUDFLARE_R2_PUBLIC_URL (the R2
-  // public bucket / custom domain) and publish there — the feed yml, blockmaps
-  // and installers all live in the same flat R2 bucket, and electron-updater
-  // resolves the yml's relative artifact paths against it. Builds without the
-  // var (local, or a fork without the R2 vars) keep the github provider, which
-  // is exactly today's behavior. The store build has no feed at all (the Store
-  // owns its distribution and updates).
-  publish: channelRequest ? null : !channel
-    ? null
-    : [
-        publicUrl
-          ? { provider: 'generic', url: publicUrl, channel }
-          : { provider: 'github', owner, repo, channel }
-      ],
+  // Only an explicitly configured private HTTPS feed may enable in-app
+  // updates. Local/fork builds without it ship no feed; never fall back to the
+  // upstream GitHub repository.
+  publish: channelRequest ? null : publicUrl && channel
+    ? [{ provider: 'generic', url: publicUrl, channel }]
+    : null,
   extraMetadata: {
     name: appNamePascal,
     // Electron bootstrap reads package.productName before main.ts. Keep the
@@ -132,6 +120,10 @@ module.exports = {
     ...(['bundled', 'store'].includes(process.env.HERMES_DESKTOP_VARIANT || '')
       ? [{ from: 'build/agent-payload', to: 'agent-payload' }]
       : []),
+    {
+      from: 'electron/guardian-supervisor.py',
+      to: 'guardian-supervisor.py'
+    },
     {
       from: 'assets/icon.ico',
       to: 'icon.ico'

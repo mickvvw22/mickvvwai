@@ -38,7 +38,7 @@ def rehome_inbound_media(event: MessageEvent) -> None:
             continue
         dest = active / "cache" / rel
         try:
-            if not src.is_file():
+            if src.is_symlink() or not (src.is_file() or src.is_dir()):
                 continue
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(src), str(dest))

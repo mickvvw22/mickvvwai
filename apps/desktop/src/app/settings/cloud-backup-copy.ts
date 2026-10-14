@@ -30,7 +30,7 @@ export interface CloudBackupCopy {
 const zh: CloudBackupCopy = {
   title: '云端备份',
   intro: '连接 WebDAV 服务器，创建加密备份，并在需要时恢复到当前所选配置。',
-  warning: '备份包含配置、凭据、会话数据，以及归档中的共享外部提供商状态。上传前会使用 AES-GCM 加密；加密口令不会保存。请使用至少 12 个字符的强口令并妥善保管，遗失后无法恢复备份。',
+  warning: '备份包含配置、凭据、会话数据，以及归档中的共享外部提供商状态。临时归档只在验证过的内存文件系统中处理；若不可用会停止，不会回退到普通磁盘。上传前使用 AES-GCM 加密；加密口令不会保存。请使用至少 12 个字符的强口令并妥善保管，遗失后无法恢复备份。',
   destination: 'WebDAV 连接',
   url: 'WebDAV 文件夹 URL',
   username: '用户名（可选）',
@@ -60,7 +60,7 @@ const zhHant: CloudBackupCopy = {
   ...zh,
   title: '雲端備份',
   intro: '連線至 WebDAV 伺服器，建立加密備份，並在需要時還原至目前選取的設定。',
-  warning: '備份包含設定、憑證、工作階段資料，以及封存中的共用外部提供者狀態。上傳前會以 AES-GCM 加密；加密密語不會儲存。請使用至少 12 個字元的強密語並妥善保管，遺失後無法還原備份。',
+  warning: '備份包含設定、憑證、工作階段資料，以及封存中的共用外部提供者狀態。暫存封存只會在經驗證的記憶體檔案系統中處理；若不可用便會停止，不會改用一般磁碟。上傳前會以 AES-GCM 加密；加密密語不會儲存。請使用至少 12 個字元的強密語並妥善保管，遺失後無法還原備份。',
   destination: 'WebDAV 連線',
   url: 'WebDAV 資料夾 URL',
   username: '使用者名稱（選填）',
@@ -87,7 +87,7 @@ const zhHant: CloudBackupCopy = {
 const en: CloudBackupCopy = {
   title: 'Cloud backup',
   intro: 'Connect a WebDAV server to create encrypted backups and restore them to the currently selected profile.',
-  warning: 'Backups include configuration, credentials, session data, and any shared external-provider state in the archive. They are encrypted with AES-GCM before upload; the encryption passphrase is never saved. Use a strong passphrase of at least 12 characters and keep it safe—lost passphrases cannot be recovered.',
+  warning: 'Backups include configuration, credentials, session data, and any shared external-provider state in the archive. Temporary archives are processed only on a verified RAM-backed filesystem; if one is unavailable, the operation stops instead of falling back to disk. Data is encrypted with AES-GCM before upload; the passphrase is never saved. Use a strong passphrase of at least 12 characters and keep it safe—lost passphrases cannot be recovered.',
   destination: 'WebDAV connection',
   url: 'WebDAV folder URL',
   username: 'Username (optional)',

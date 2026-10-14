@@ -181,6 +181,75 @@ def _prioritize_telegram_menu_candidates(
     return [c for _i, c in sorted(enumerate(candidates), key=lambda item: _rank(*item))]
 
 
+# Simplified Chinese copy for the Telegram command menu only. Command identifiers,
+# dispatch, and other help surfaces remain unchanged; custom plugin/skill descriptions
+# retain their authored text unless a matching translation is provided here.
+_TELEGRAM_MENU_DESCRIPTIONS_ZH_CN: dict[str, str] = {
+    "help": "查看可用命令（/help skills 查看技能命令；/help <关键词> 按关键词筛选）",
+    "new": "开始全新会话（创建新的会话 ID 和历史记录）",
+    "clearhistory": "永久删除当前对话历史（需要确认）",
+    "stop": "终止所有正在运行的后台进程",
+    "pause": "全局暂停新任务（紧急停止）；输入 /pause off 可恢复",
+    "compress": "压缩对话上下文；添加 here [N] 保留最近 N 轮，--preview 仅预览",
+    "model": "切换模型（默认仅当前会话；--global 保存为全局设置）",
+    "personality": "设置预设人格",
+    "approve": "批准待处理的高风险命令",
+    "deny": "拒绝待处理的高风险命令（可附原因）",
+    "status": "查看当前会话、模型、令牌用量和上下文状态",
+    "context": "查看上下文用量、分类、压缩统计和处理速度",
+    "usage": "查看令牌用量和速率限制；reset 可兑换已存的 Codex 限额重置",
+    "reasoning": "管理推理强度并查看当前设置",
+    "restart": "等待当前任务处理完毕后，平稳重启网关",
+    "restartapp": "重启已配对的本地 Mickvvw 桌面应用（仅管理员）",
+    "addmodel": "查看在 Mickvvw 设置中安全添加模型的方法",
+    "egress": "查看 Docker 出站代理状态",
+    "resume": "恢复之前命名的会话",
+    "sessions": "浏览现有会话并恢复其中一个",
+    "debug": "上传系统信息和日志生成调试报告，并获取分享链接",
+    "update": "将 Mickvvw 更新到最新版本",
+    "commands": "分页浏览全部命令和技能",
+    "queue": "排队下一条提示，或查看、编辑、删除、移动和清空队列中的提示",
+    "steer": "在下一个工具调用后插入消息，不中断当前任务",
+    "bg": "在独立后台会话中运行一条提示",
+    "btw": "不中断当前任务，提出一个旁支问题",
+    "platform": "暂停、恢复或查看运行异常的平台",
+    "platforms": "暂停、恢复或查看运行异常的平台",
+    "profile": "显示当前运行配置名称和主目录",
+    "sethome": "将当前聊天设置为 Mickvvw 的主聊天",
+    "diff": "查看当前工作目录中的代码改动",
+    "verbose": "切换工具进度显示级别（关闭、新工具、全部或详细）",
+    "whoami": "显示你的命令访问权限（管理员 / 普通用户）",
+    "start": "确认平台启动通知，不发送回复",
+    "topic": "开启或查看 Telegram 私聊话题会话",
+    "save": "导出当前对话；直接输入 /save 查看用法",
+    "retry": "重新发送上一条消息",
+    "undo": "回退 N 条用户消息并重新生成回复（默认 1 条）",
+    "title": "设置当前对话标题",
+    "branch": "基于当前对话创建分支；--here 留在当前会话",
+    "rollback": "列出或恢复文件检查点（默认保留手动修改；--all 可覆盖）",
+    "agents": "查看正在运行的子智能体和任务",
+    "goal": "设置持续目标，让 Mickvvw 跨轮次推进直到完成",
+    "heartbeat": "设置周期性提示，在空闲时自动继续任务",
+    "refine": "复盘当前对话，并将经验保存到记忆或技能",
+    "review": "启动独立子智能体审查最近讨论的工作（PR、代码或文档）",
+    "loop": "按周期重复运行任务提示",
+    "plan": "将 Markdown 计划写入 .hermes/plans/，但不执行",
+    "initiate_setup": "运行首次设置，了解偏好并配置 Mickvvw",
+    "moa": "通过默认多智能体方案执行一次任务，然后恢复原模型",
+    "subgoal": "添加或管理当前目标的附加标准",
+    "codex_runtime": "切换 OpenAI/Codex 模型的 Codex App Server 运行模式",
+    "footer": "开关最终回复中的网关运行状态页脚",
+    "yolo": "开关 YOLO 模式（跳过所有危险命令审批）",
+    "approvals": "查看或设置危险命令的持续审批方式",
+    "fast": "切换快速模式；可选 normal、fast、auto、cold、ultrafast",
+    "voice": "开关语音模式",
+    "busy": "控制 Mickvvw 忙碌时如何处理新消息",
+    "memory": "查看待处理的记忆写入，或切换审批门槛",
+    "bundles": "列出技能包；每个技能包可提供多个命令",
+    "learn": "根据描述、文件夹、网址或笔记学习可复用技能",
+}
+
+
 # --- Shared skill/plugin collection for gateway platforms -------------------
 
 def _iter_gateway_skills(platform: str):
@@ -294,7 +363,10 @@ def telegram_menu_commands(max_commands: int = 100) -> tuple[list[tuple[str, str
                    for name, desc, cmd_key, raw in entries]
     candidates = _prioritize_telegram_menu_candidates(candidates)
     overflow_count = max(0, len(candidates) - max_commands)
-    menu = [(name, _normalize_telegram_desc(desc)) for name, desc, _source, _raw_name in candidates[:max_commands]]
+    menu = [
+        (name, _normalize_telegram_desc(_TELEGRAM_MENU_DESCRIPTIONS_ZH_CN.get(name, desc)))
+        for name, desc, _source, _raw_name in candidates[:max_commands]
+    ]
     return menu, hidden_count + overflow_count
 
 

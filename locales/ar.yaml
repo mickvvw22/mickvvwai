@@ -160,7 +160,7 @@ gateway:
     header: "**تم رفع تقرير التصحيح:**"
     auto_delete: "⏱ ستُحذف اللصقات تلقائيًا خلال 6 ساعات."
     full_logs_hint: "لرفع السجلات الكاملة، استخدم `hermes debug share` من واجهة الأوامر."
-    share_hint: "شارك هذه الروابط مع فريق Xinyuan للحصول على الدعم."
+    share_hint: "شارك هذه الروابط مع فريق Mickvvw للحصول على الدعم."
     report_label: "تقرير"
   deny:
     stale: "❌ رُفض الأمر (الموافقة كانت قديمة)."
@@ -203,7 +203,7 @@ gateway:
     set: "⊙ حُدِّد الهدف (ميزانية {budget} دور): {goal}\nسأواصل العمل حتى يكتمل الهدف، أو توقفه/تمسحه، أو تنفد الميزانية.\nالتحكم: /goal status · /goal pause · /goal resume · /goal clear"
     gate_add_admin_only: "⛔ يتطلّب /goal gate add مشرف بوّابة مضبوطًا صراحةً (allow_admin_from للرسائل الخاصة، group_allow_admin_from للمجموعات)."
   help:
-    header: "📖 **أوامر Xinyuan**\n"
+    header: "📖 **أوامر Mickvvw**\n"
     skill_header: "\n⚡ **أوامر المهارات** ({count} نشطة):"
     more_use_commands: "\n... و{count} آخر. استخدم `/commands` للقائمة الكاملة المُقسّمة إلى صفحات."
   insights:
@@ -329,7 +329,7 @@ gateway:
     db_unavailable: "قاعدة بيانات الجلسات غير متاحة."
     parse_error: "⚠️ تعذّر تحليل وسائط `/resume`: {error}.\nاستخدم علامات اقتباس حول العناوين التي تحتوي مسافات، مثال: `/resume \"Project A Plan\"`."
     matrix_no_named_sessions: "لم يُعثر على جلسات مُسمّاة لغرفة Matrix هذه.\nاستخدم `/title My Session` لتسمية جلسة الغرفة الحالية، أو `/resume --all` لسرد كل جلسات Matrix، أو `/resume --cross-room <session name>` لتجاوز حدود الغرفة صراحةً."
-    matrix_blocked_no_origin: "⚠️ حُجب /resume في Matrix: هذه الجلسة المُسمّاة لا تملك أصل غرفة مُسجّلًا، لذا لن يستأنفها Xinyuan داخل الغرفة الحالية افتراضيًا. استخدم `/resume --cross-room {name}` إن كنت تريد عمدًا تجاوز حدود الغرفة."
+    matrix_blocked_no_origin: "⚠️ حُجب /resume في Matrix: هذه الجلسة المُسمّاة لا تملك أصل غرفة مُسجّلًا، لذا لن يستأنفها Mickvvw داخل الغرفة الحالية افتراضيًا. استخدم `/resume --cross-room {name}` إن كنت تريد عمدًا تجاوز حدود الغرفة."
     matrix_blocked_other_room: "⚠️ حُجب /resume في Matrix: تلك الجلسة تخصّ غرفة Matrix مختلفة ({room}). استخدم `/resume --cross-room {name}` إن كنت تريد عمدًا استئنافها هنا."
     matrix_cross_room_success: "⚠️ استئناف عبر الغرف: استُؤنفت **{title}** داخل غرفة Matrix ‏**{room}**.\nستستخدم الرسائل المستقبلية في هذه الغرفة ذلك النص حتى `/reset` أو `/resume` آخر.{msg_part}"
     blocked_not_owner: "⚠️ حُجب /resume: '**{name}**' تخصّ مستخدمًا أو محادثة مختلفة. يمكنك فقط استئناف جلسات هذه المحادثة."
@@ -422,7 +422,7 @@ gateway:
     source_line: "المصدر: {source}؛ أعداد الفئات تقديرات محلية."
     hint_all: "استخدم /context all لتكاليف كل مهارة وكل مجموعة أدوات."
   status:
-    header: "📊 **حالة بوابة Xinyuan**"
+    header: "📊 **حالة بوابة Mickvvw**"
     matrix_scope_header: "**نطاق Matrix:**"
     matrix_scope_room: "  الغرفة: {room}"
     matrix_scope_room_id: "  معرّف الغرفة: {room_id}"
@@ -466,24 +466,24 @@ gateway:
     topics_user_disallowed: "مواضيع Telegram مُفعّلة، لكن غير مسموح للمستخدمين بإنشاء مواضيع.\n\nافتح @BotFather → اختر البوت → Bot Settings → Threads Settings، ثم أوقف 'Disallow users to create new threads'.\n\nثم أرسل /topic مرة أخرى."
     enable_failed: "فشل تفعيل وضع مواضيع Telegram: {error}"
     bound_status: "هذا الموضوع مرتبط بـ:\nالجلسة: {label}\nالمعرّف: {session_id}\n\nاستخدم /new لاستبدال هذا الموضوع بجلسة جديدة.\nللعمل المتوازي، افتح All Messages وأرسل رسالة هناك لإنشاء موضوع آخر."
-    thread_ready: "مواضيع Telegram متعددة الجلسات مُفعّلة.\n\nسيُستخدم هذا الموضوع كجلسة Xinyuan مستقلة. استخدم /new لاستبدال جلسة هذا الموضوع الحالية. للعمل المتوازي، افتح All Messages وأرسل رسالة هناك لإنشاء موضوع آخر."
+    thread_ready: "مواضيع Telegram متعددة الجلسات مُفعّلة.\n\nسيُستخدم هذا الموضوع كجلسة Mickvvw مستقلة. استخدم /new لاستبدال جلسة هذا الموضوع الحالية. للعمل المتوازي، افتح All Messages وأرسل رسالة هناك لإنشاء موضوع آخر."
     untitled_session: "جلسة دون عنوان"
     restore_step_1: "1. أنشئ موضوعًا أو افتحه. لإنشاء موضوع جديد، افتح All Messages وأرسل أي رسالة هناك."
     restore_step_2: "2. أرسل /topic <session-id> داخل ذلك الموضوع."
-    default_title: "محادثة Xinyuan"
-    root_lobby: "هذه المحادثة الرئيسية مخصّصة لأوامر النظام.\n\nلبدء محادثة Xinyuan جديدة، افتح موضوع All Messages في أعلى واجهة البوت وأرسل أي رسالة هناك. سينشئ Telegram موضوعًا جديدًا لتلك الرسالة؛ ويعمل كل موضوع كجلسة Xinyuan مستقلة."
-    root_new: "لبدء محادثة Xinyuan متوازية جديدة، افتح موضوع All Messages في أعلى واجهة البوت وأرسل أي رسالة هناك. سينشئ Telegram موضوعًا جديدًا لها.\n\nكل موضوع جلسة Xinyuan مستقلة. استخدم /new داخل موضوع موجود فقط إذا أردت استبدال الجلسة الحالية لذلك الموضوع."
-    new_header: "بدأت جلسة Xinyuan جديدة في هذا الموضوع.\n\nنصيحة: للعمل المتوازي، افتح All Messages وأرسل رسالة هناك لإنشاء موضوع منفصل بدلًا من استخدام /new هنا. فـ /new يستبدل الجلسة المرتبطة بالموضوع الحالي."
-    help: "/topic — تفعيل وضع الجلسات المتعددة في الرسائل الخاصة (بوت واحد، محادثات متوازية كثيرة)\n\nالاستخدام:\n  /topic             تفعيل وضع المواضيع، أو عرض الحالة إن كان مفعّلًا\n  /topic help        عرض هذه الرسالة\n  /topic off         تعطيل وضع المواضيع ومسح ارتباطاتها\n  /topic <id>        داخل موضوع: استعادة جلسة سابقة بمعرّفها\n\nكيف يعمل:\n1. شغّل /topic مرة واحدة في هذه المحادثة الخاصة — يتحقّق Xinyuan من تفعيل\n   Threads Settings في BotFather ويشغّل وضع الجلسات المتعددة.\n2. اضغط All Messages في أعلى البوت وأرسل أي رسالة.\n   ينشئ Telegram موضوعًا جديدًا لتلك الرسالة؛ وكل موضوع\n   جلسة Xinyuan مستقلة (سجل جديد وسياق جديد).\n3. تصبح المحادثة الخاصة الرئيسية ردهة للنظام — أرسل فيها /topic و/status\n   و/help و/usage. أما المطالبات العادية فتُرسل داخل موضوع.\n4. /new داخل موضوع يعيد ضبط جلسة ذلك الموضوع فقط.\n5. /topic <id> داخل موضوع يستعيد جلسة قديمة إليه."
+    default_title: "محادثة Mickvvw"
+    root_lobby: "هذه المحادثة الرئيسية مخصّصة لأوامر النظام.\n\nلبدء محادثة Mickvvw جديدة، افتح موضوع All Messages في أعلى واجهة البوت وأرسل أي رسالة هناك. سينشئ Telegram موضوعًا جديدًا لتلك الرسالة؛ ويعمل كل موضوع كجلسة Mickvvw مستقلة."
+    root_new: "لبدء محادثة Mickvvw متوازية جديدة، افتح موضوع All Messages في أعلى واجهة البوت وأرسل أي رسالة هناك. سينشئ Telegram موضوعًا جديدًا لها.\n\nكل موضوع جلسة Mickvvw مستقلة. استخدم /new داخل موضوع موجود فقط إذا أردت استبدال الجلسة الحالية لذلك الموضوع."
+    new_header: "بدأت جلسة Mickvvw جديدة في هذا الموضوع.\n\nنصيحة: للعمل المتوازي، افتح All Messages وأرسل رسالة هناك لإنشاء موضوع منفصل بدلًا من استخدام /new هنا. فـ /new يستبدل الجلسة المرتبطة بالموضوع الحالي."
+    help: "/topic — تفعيل وضع الجلسات المتعددة في الرسائل الخاصة (بوت واحد، محادثات متوازية كثيرة)\n\nالاستخدام:\n  /topic             تفعيل وضع المواضيع، أو عرض الحالة إن كان مفعّلًا\n  /topic help        عرض هذه الرسالة\n  /topic off         تعطيل وضع المواضيع ومسح ارتباطاتها\n  /topic <id>        داخل موضوع: استعادة جلسة سابقة بمعرّفها\n\nكيف يعمل:\n1. شغّل /topic مرة واحدة في هذه المحادثة الخاصة — يتحقّق Mickvvw من تفعيل\n   Threads Settings في BotFather ويشغّل وضع الجلسات المتعددة.\n2. اضغط All Messages في أعلى البوت وأرسل أي رسالة.\n   ينشئ Telegram موضوعًا جديدًا لتلك الرسالة؛ وكل موضوع\n   جلسة Mickvvw مستقلة (سجل جديد وسياق جديد).\n3. تصبح المحادثة الخاصة الرئيسية ردهة للنظام — أرسل فيها /topic و/status\n   و/help و/usage. أما المطالبات العادية فتُرسل داخل موضوع.\n4. /new داخل موضوع يعيد ضبط جلسة ذلك الموضوع فقط.\n5. /topic <id> داخل موضوع يستعيد جلسة قديمة إليه."
     system_topic_name: "النظام"
-    system_topic_intro: "موضوع النظام لأوامر Xinyuan وحالته."
+    system_topic_intro: "موضوع النظام لأوامر Mickvvw وحالته."
     setup_image_caption: "في BotFather: Bot Settings → Threads Settings"
     no_chat_id: "تعذّر تحديد معرّف المحادثة."
     mode_not_enabled: "وضع المواضيع متعددة الجلسات غير مفعّل حاليًا لهذه المحادثة."
     disable_failed: "فشل تعطيل وضع المواضيع: {error}"
-    mode_disabled: "أصبح وضع المواضيع متعددة الجلسات معطّلًا لهذه المحادثة.\n\nلن تُحذف المواضيع الموجودة في Telegram — لكنها لن تُعامل بعد الآن كجلسات مستقلة. وتعود المحادثة الخاصة الرئيسية للعمل كمحادثة Xinyuan عادية. شغّل /topic لإعادة التفعيل لاحقًا."
+    mode_disabled: "أصبح وضع المواضيع متعددة الجلسات معطّلًا لهذه المحادثة.\n\nلن تُحذف المواضيع الموجودة في Telegram — لكنها لن تُعامل بعد الآن كجلسات مستقلة. وتعود المحادثة الخاصة الرئيسية للعمل كمحادثة Mickvvw عادية. شغّل /topic لإعادة التفعيل لاحقًا."
     status_enabled: "مواضيع Telegram متعددة الجلسات مفعّلة."
-    status_how_to: "لإنشاء محادثة Xinyuan جديدة، افتح All Messages في أعلى واجهة البوت وأرسل أي رسالة هناك. سينشئ Telegram موضوعًا جديدًا لها."
+    status_how_to: "لإنشاء محادثة Mickvvw جديدة، افتح All Messages في أعلى واجهة البوت وأرسل أي رسالة هناك. سينشئ Telegram موضوعًا جديدًا لها."
     previous_unlinked: "الجلسات السابقة غير المرتبطة:"
     restore_one: "لاستعادة إحداها:"
     restore_example: "مثال: أرسل /topic {session_id} داخل موضوع."
@@ -494,7 +494,7 @@ gateway:
     not_your_session: "تلك الجلسة لا تنتمي إلى مستخدم Telegram هذا."
     already_linked: "تلك الجلسة مرتبطة بالفعل بموضوع Telegram آخر."
     restored: "تمت استعادة الجلسة: {title}"
-    restored_last_message: "\n\nآخر رسالة من Xinyuan:\n{text}"
+    restored_last_message: "\n\nآخر رسالة من Mickvvw:\n{text}"
   undo:
     nothing: "لا شيء للتراجع عنه."
     removed: "↩️ تم التراجع عن {turns} دور ({count} رسالة).\nنُسخ احتياطيًا إلى: \"{preview}\"\nانسخ/عدّل النص أعلاه وأرسله لإعادة التوجيه من هنا."
@@ -502,19 +502,19 @@ gateway:
   update:
     platform_not_messaging: "✗ /update متاح فقط من منصّات المراسلة. شغّل `hermes update` من الطرفية."
     not_git_repo: "✗ ليس مستودع git — لا يمكن التحديث."
-    hermes_cmd_not_found: "✗ تعذّر تحديد موقع أمر `hermes`. Xinyuan يعمل، لكن أمر التحديث لم يجد الملف التنفيذي على PATH أو عبر مُفسّر Python الحالي. جرّب تشغيل `hermes update` يدويًا في طرفيتك."
+    hermes_cmd_not_found: "✗ تعذّر تحديد موقع أمر `hermes`. Mickvvw يعمل، لكن أمر التحديث لم يجد الملف التنفيذي على PATH أو عبر مُفسّر Python الحالي. جرّب تشغيل `hermes update` يدويًا في طرفيتك."
     start_failed: "✗ فشل بدء التحديث: {error}"
-    starting: "☤ جارٍ بدء تحديث Xinyuan… سأبثّ التقدّم هنا."
+    starting: "☤ جارٍ بدء تحديث Mickvvw… سأبثّ التقدّم هنا."
     reply_failed: "✗ فشل إرسال الردّ إلى عملية التحديث: {error}"
     reply_sent: "✓ أُرسل `{label}` إلى عملية التحديث."
-    failed_notice: "❌ فشل تحديث Xinyuan؛ الإصدار السابق لا يزال يعمل. شغّل `hermes update` على المضيف لرؤية الخطأ كاملًا، أو جرّب /update لاحقًا."
+    failed_notice: "❌ فشل تحديث Mickvvw؛ الإصدار السابق لا يزال يعمل. شغّل `hermes update` على المضيف لرؤية الخطأ كاملًا، أو جرّب /update لاحقًا."
     prompt_default: " (الافتراضي: {default})"
     prompt: "☤ **التحديث يحتاج إلى ردّك:**\n\n{prompt}{default_hint}\n\nأرسل `{prefix}approve` (نعم) أو `{prefix}deny` (لا)، أو اكتب إجابتك مباشرة."
-    finished: "✅ انتهى تحديث Xinyuan."
-    timed_out: "❌ انتهت مهلة تحديث Xinyuan بعد 30 دقيقة."
-    finished_success: "✅ انتهى تحديث Xinyuan بنجاح."
+    finished: "✅ انتهى تحديث Mickvvw."
+    timed_out: "❌ انتهت مهلة تحديث Mickvvw بعد 30 دقيقة."
+    finished_success: "✅ انتهى تحديث Mickvvw بنجاح."
     last_lines: "{msg}\n\nآخر الأسطر:\n```\n{tail}\n```"
-    managed_action: "تحديث Xinyuan Agent"
+    managed_action: "تحديث Mickvvw Agent"
     not_applicable: "✗ لا ينطبق `hermes update` على هذا التثبيت ({method}).\nحدّث باستخدام: {command}"
   usage:
     rate_limits: "⏱️ **حدود المعدّل:** {state}"
@@ -601,7 +601,7 @@ gateway:
     none_value: "لا شيء"
     unknown_value: "غير معروف"
   exec_approval:
-    header: "يريد Xinyuan تشغيل أمر يحتاج إلى موافقتك"
+    header: "يريد Mickvvw تشغيل أمر يحتاج إلى موافقتك"
     reason_label: "سبب التنبيه"
     default_reason: "أمر خطير"
     smart_deny_line: "رفض ذكي: تجاوز المالك ينطبق على هذه العملية وحدها."
@@ -634,7 +634,7 @@ gateway:
     turn_error_detailed: "عذرًا، واجهت خطأ ({error_type}).\n{error_detail}\nحاول مجددًا أو استخدم /reset لبدء جلسة جديدة."
     turn_error: "عذرًا، واجهت خطأ."
     context_injection_refused: "رُفض حقن السياق."
-    no_home_channel: "📬 لم تُحدَّد قناة رئيسية لـ {platform}. القناة الرئيسية هي المكان الذي يرسل إليه Xinyuan نتائج المهام المجدولة والرسائل العابرة للمنصات.\n\nاكتب {sethome_cmd} لجعل هذه المحادثة قناتك الرئيسية، أو تجاهل هذا للتخطّي."
+    no_home_channel: "📬 لم تُحدَّد قناة رئيسية لـ {platform}. القناة الرئيسية هي المكان الذي يرسل إليه Mickvvw نتائج المهام المجدولة والرسائل العابرة للمنصات.\n\nاكتب {sethome_cmd} لجعل هذه المحادثة قناتك الرئيسية، أو تجاهل هذا للتخطّي."
   unauthorized:
     action_notice: "هذا البوت خاص ولستَ ضمن قائمة المسموح لهم. إن كنت مالكه، شغّل `hermes pairing approve {platform} <request-id>` على المضيف (يعرض `hermes pairing list` المعرّف)."
     admin_only_can_run: "يمكنك تشغيل: "
@@ -662,7 +662,7 @@ gateway:
     bad_request: "⚠️ رفضت خدمة نموذج الذكاء الاصطناعي هذا الطلب. جرّب إعادة صياغة رسالتك، أو استخدم /model لتبديل النموذج."
     connection_interrupted: "⚠️ انقطع الاتصال بخدمة نموذج الذكاء الاصطناعي أثناء الطلب — وهو أمر عابر عادةً. استخدم /retry لإعادة المحاولة؛ وإن تكرّر، شغّل `hermes doctor` على المضيف."
     unreachable: "⚠️ لا يمكن الوصول إلى خدمة نموذج الذكاء الاصطناعي الآن — نقطة نهاية النموذج المُعدّة غير مشغّلة أو غير قابلة للوصول. انتظر قليلًا واستخدم /retry؛ وإن استمرّ الأمر، شغّل `hermes doctor` على المضيف."
-    connection_unknown: "⚠️ تعذّر على Xinyuan الوصول إلى خدمة نموذج الذكاء الاصطناعي (لا تفاصيل إضافية من SDK). استخدم /retry لإعادة المحاولة؛ وإن استمرّ الأمر، شغّل `hermes doctor` على المضيف."
+    connection_unknown: "⚠️ تعذّر على Mickvvw الوصول إلى خدمة نموذج الذكاء الاصطناعي (لا تفاصيل إضافية من SDK). استخدم /retry لإعادة المحاولة؛ وإن استمرّ الأمر، شغّل `hermes doctor` على المضيف."
     context_overflow: "⚠️ أصبحت هذه المحادثة أطول من أن أقرأها كاملةً في مرة واحدة. استخدم /compress لتقليص السجل، أو /new لبدء محادثة جديدة."
     usage_limit_resets: "⏱️ تم الوصول إلى حد استخدام خدمة نموذج الذكاء الاصطناعي؛ يُعاد تعيينه خلال {window}. استخدم /retry بعد ذلك، أو /model لتبديل النموذج."
     provider_kept_failing: "⚠️ استمرّ فشل خدمة نموذج الذكاء الاصطناعي. استخدم /retry لإعادة المحاولة، أو /model لتبديل النموذج. التفاصيل في سجل البوّابة (`hermes logs`)."
@@ -728,20 +728,20 @@ gateway:
     draining_maintenance: "⏳ هذا الوكيل يُنهي عمله تحضيرًا لإجراء صيانة ولا يقبل أدوارًا جديدة الآن. سيعود بعد لحظات — يُرجى إعادة الإرسال بعد قليل."
     another_turn_running: "⏳ لا يزال دور آخر قيد التشغيل في هذه الجلسة. لحماية نص المحادثة، لم تُعالج هذه الرسالة. انتظر انتهاء الدور النشط، ثم أعد إرسالها."
     behavior_queue_short: "تُوضع في قائمة الانتظار للدور التالي"
-    behavior_queue_long: "ستُوضع الرسائل في قائمة الانتظار للدور التالي عندما يكون Xinyuan مشغولًا."
+    behavior_queue_long: "ستُوضع الرسائل في قائمة الانتظار للدور التالي عندما يكون Mickvvw مشغولًا."
     behavior_steer_short: "تُوجَّه إلى التشغيل الحالي (بعد استدعاء الأداة التالي)"
     behavior_steer_long: "ستُوجَّه الرسائل إلى التشغيل الحالي (بعد استدعاء الأداة التالي)."
     behavior_interrupt_short: "تقاطع التشغيل الحالي"
-    behavior_interrupt_long: "ستقاطع الرسائل التشغيل الحالي عندما يكون Xinyuan مشغولًا."
+    behavior_interrupt_long: "ستقاطع الرسائل التشغيل الحالي عندما يكون Mickvvw مشغولًا."
     status: "**وضع الإدخال أثناء الانشغال: `{mode}`\nالرسائل أثناء الانشغال: _{behavior}_\nغيّره بـ `/busy queue` أو `/busy steer` أو `/busy interrupt`."
     unknown_mode: "وضع غير معروف `{arg}`. استخدم `/busy queue` أو `/busy steer` أو `/busy interrupt`."
     save_failed: "تعذّر حفظ وضع الإدخال أثناء الانشغال في الإعدادات. لم يتغيّر الوضع."
     set: "تم تعيين وضع الإدخال أثناء الانشغال إلى **`{mode}`** (تم الحفظ).\n_{behavior}_"
   pause:
     resumed: "▶️ تم الاستئناف — يُقبل العمل الجديد مجددًا."
-    not_paused: "لم يكن Xinyuan متوقفًا مؤقتًا."
+    not_paused: "لم يكن Mickvvw متوقفًا مؤقتًا."
     reason_suffix: " (السبب: {reason})"
-    already_paused: "⏸️ Xinyuan متوقّف مؤقتًا بالفعل{suffix}. استخدم `/pause off` للاستئناف."
+    already_paused: "⏸️ Mickvvw متوقّف مؤقتًا بالفعل{suffix}. استخدم `/pause off` للاستئناف."
     paused: "⏸️ تم الإيقاف المؤقت{suffix}. أعمال cron/كانبان/البوّابة الجديدة معلّقة؛ والأعمال الجارية تُكمَل كالمعتاد. استخدم `/pause off` للاستئناف."
   queue:
     usage: "الاستخدام: /queue <prompt>"
@@ -828,7 +828,7 @@ gateway:
     task_status_complete: "مكتمل"
     task_status_error: "خطأ"
     task_line: "- {title} - {status}"
-    task_card_title: "Xinyuan يعمل"
+    task_card_title: "Mickvvw يعمل"
   pairing:
     validity_hour: "{hours} ساعة"
     validity_hours: "{hours} ساعات"
@@ -837,14 +837,14 @@ gateway:
   shutdown:
     action_shutting_down: "قيد إيقاف التشغيل"
     action_restarting: "قيد إعادة التشغيل"
-    cron_interrupted: "⚠️ قُطعت المهمة المجدولة '{job}' لأن Xinyuan {action}؛ لا نتيجة لهذا التشغيل. ستعمل مجددًا في موعدها، أو شغّلها الآن بـ `hermes cron run {job}` بعد عودة Xinyuan."
-    notice_shutdown: "⚠️ Xinyuan قيد إيقاف التشغيل — ستُقطع مهمتك الحالية. عند عودته إلى الاتصال، أرسل أي رسالة وسأحاول المتابعة من حيث توقفنا."
-    notice_restart: "⚠️ Xinyuan قيد إعادة التشغيل — ستُقطع مهمتك الحالية. أرسل أي رسالة بعد إعادة التشغيل وسأحاول الاستئناف من حيث توقفت."
+    cron_interrupted: "⚠️ قُطعت المهمة المجدولة '{job}' لأن Mickvvw {action}؛ لا نتيجة لهذا التشغيل. ستعمل مجددًا في موعدها، أو شغّلها الآن بـ `hermes cron run {job}` بعد عودة Mickvvw."
+    notice_shutdown: "⚠️ Mickvvw قيد إيقاف التشغيل — ستُقطع مهمتك الحالية. عند عودته إلى الاتصال، أرسل أي رسالة وسأحاول المتابعة من حيث توقفنا."
+    notice_restart: "⚠️ Mickvvw قيد إعادة التشغيل — ستُقطع مهمتك الحالية. أرسل أي رسالة بعد إعادة التشغيل وسأحاول الاستئناف من حيث توقفت."
   startup:
-    handoff_thread_title: "Xinyuan — {title}"
+    handoff_thread_title: "Mickvvw — {title}"
     restarted: "♻ أُعيد تشغيل البوّابة بنجاح. جلستك مستمرة."
-    free_tier_line: "الاستدلال: الطبقة المجانية من Nous (nous/welcome). سجّل الدخول للمزيد: /login"
-    online: "♻️ البوّابة متصلة — Xinyuan عاد وجاهز."
+    free_tier_line: "الاستدلال: الطبقة المجانية من Nous (nous/welcome). يعتمد التوفر على إعدادات الخدمة."
+    online: "♻️ البوّابة متصلة — Mickvvw عاد وجاهز."
     db_corrupt: "⚠️ رُصد تلف في قاعدة بيانات الجلسات. قد لا تُحفظ الرسائل. خيارات الاستعادة:\n1. شغّل `hermes {profile_arg}doctor --fix`\n2. أوقف البوّابة، ثم استعد بـ:\n   hermes {profile_arg}sessions recover --source {db_path} --inspect-only\n   (إذا أفاد بإمكانية الاستعادة) hermes {profile_arg}sessions recover --source {db_path} --output recovered-state.db\n   — تأخذ الاستعادة لقطة من الملف المتضرر أولًا؛ لا تشغّل `sqlite3 ... \".recover\"` على state.db الحي، فقد يزيد sqlite3 CLI المعرّض للثغرات من تلفه\n3. استعد من نسخة احتياطية في {backups_dir}/\nشغّل `hermes {profile_arg}doctor` للحصول على تشخيصات منقّحة."
     db_fts_corrupt: "⚠️ أفادت قاعدة بيانات الجلسات بخطأ تلف محصور في فهرس البحث (FTS5)؛ جداول الرسائل غير متضررة. قد لا تُحفظ الرسائل حتى إصلاحه: شغّل `hermes {profile_arg}doctor --fix` ثم أعد تشغيل البوّابة. لا تشغّل أدوات الاستعادة ولا تستعد نسخة احتياطية إلا إذا أكّد `hermes {profile_arg}doctor` وجود تلف."
     db_then_restart: "{action} ثم `hermes {profile_arg}gateway restart`."
@@ -991,7 +991,7 @@ platform:
     transformed_notice: "\n\n[تم تحويل الرد بعد البث]\n"
   discord:
     approval:
-      question: "هل تريد أن يشغّل Xinyuan هذا الأمر؟"
+      question: "هل تريد أن يشغّل Mickvvw هذا الأمر؟"
       requested_command_label: "الأمر المطلوب:"
       confirm_title: "تأكيد"
       already_resolved: "تم البتّ في هذه الموافقة مسبقًا~"
@@ -1011,7 +1011,7 @@ platform:
       resolved_cancel: "أُلغي"
     prompt:
       truncated_marker: "... [مقتطع]"
-      clarify_title: "Xinyuan يحتاج إلى ردّك"
+      clarify_title: "Mickvvw يحتاج إلى ردّك"
       clarify_hint_buttons: "اختر أحد الخيارات أدناه، أو اضغط ✏️ أخرى لكتابة إجابة مخصصة."
       clarify_hint_text: "أجب في هذه القناة بردّك."
       default_hint: " (افتراضي: {default})"
@@ -1054,7 +1054,7 @@ platform:
         description: "بدء محادثة جديدة"
         followup: "بدأت محادثة جديدة~"
       reset:
-        description: "إعادة تعيين جلسة Xinyuan الخاصة بك"
+        description: "إعادة تعيين جلسة Mickvvw الخاصة بك"
         followup: "تمت إعادة تعيين الجلسة~"
       model:
         description: "عرض النموذج أو تغييره"
@@ -1076,10 +1076,10 @@ platform:
       undo:
         description: "إزالة آخر تبادل"
       status:
-        description: "عرض حالة جلسة Xinyuan"
+        description: "عرض حالة جلسة Mickvvw"
         followup: "أُرسلت الحالة~"
       stop:
-        description: "إيقاف وكيل Xinyuan قيد التشغيل"
+        description: "إيقاف وكيل Mickvvw قيد التشغيل"
         followup: "طُلب الإيقاف~"
       steer:
         description: "إدراج رسالة بعد استدعاء الأداة التالي (دون مقاطعة)"
@@ -1115,7 +1115,7 @@ platform:
       update:
         followup: "بدأ التحديث~"
       restart:
-        description: "إعادة تشغيل بوّابة Xinyuan بسلاسة"
+        description: "إعادة تشغيل بوّابة Mickvvw بسلاسة"
         followup: "طُلبت إعادة التشغيل~"
       approve:
         arg_scope: "اختياري: 'all' أو 'session' أو 'always' أو 'all session' أو 'all always'"
@@ -1123,9 +1123,9 @@ platform:
         description: "رفض أمر خطير قيد الانتظار"
         arg_scope: "اختياري: 'all' لرفض جميع الأوامر قيد الانتظار"
       thread:
-        description: "إنشاء سلسلة جديدة وبدء جلسة Xinyuan فيها"
+        description: "إنشاء سلسلة جديدة وبدء جلسة Mickvvw فيها"
         arg_name: "اسم السلسلة"
-        arg_message: "رسالة أولى اختيارية تُرسل إلى Xinyuan في السلسلة"
+        arg_message: "رسالة أولى اختيارية تُرسل إلى Mickvvw في السلسلة"
         arg_auto_archive: "الأرشفة التلقائية بالدقائق (60، 1440، 4320، 10080)"
         error_unknown: "خطأ غير معروف"
         failed: "فشل إنشاء السلسلة: {error}"
@@ -1148,7 +1148,7 @@ platform:
         arg_question: "السؤال الجانبي المراد الإجابة عنه دون مقاطعة"
         followup: "أُرسل السؤال الجانبي~"
       skill:
-        description: "تشغيل مهارة Xinyuan"
+        description: "تشغيل مهارة Mickvvw"
         arg_name: "المهارة المراد تشغيلها"
         arg_args: "وسائط اختيارية للمهارة"
         unknown: "مهارة غير معروفة: `{name}`. ابدأ الكتابة للحصول على اقتراحات الإكمال التلقائي."
@@ -1168,10 +1168,10 @@ platform:
     security:
       unauthorized_slash_alert: "⚠️ محاولة أمر مائل غير مصرّح بها على Discord\nالمستخدم: {user_name} ({user_id})\nالقناة: {chan_id} (الخادم {guild_id})\nالأمر: {command_text}\nالسبب: {reason}"
     thread:
-      seed_message: "🧵 سلسلة أنشأها Xinyuan: **{name}**"
-      default_name: "Xinyuan"
-      handoff_seed: "🧵 تسليم Xinyuan: **{name}**"
-      auto_create_failed: "⚠️ تعذّر على Xinyuan إنشاء سلسلة Discord لهذه الرسالة، لذا لم تتم معالجة الطلب. يرجى إعادة المحاولة."
+      seed_message: "🧵 سلسلة أنشأها Mickvvw: **{name}**"
+      default_name: "Mickvvw"
+      handoff_seed: "🧵 تسليم Mickvvw: **{name}**"
+      auto_create_failed: "⚠️ تعذّر على Mickvvw إنشاء سلسلة Discord لهذه الرسالة، لذا لم تتم معالجة الطلب. يرجى إعادة المحاولة."
       auto_create_failed_generic: "لم تتم معالجة الطلب. يرجى إعادة المحاولة."
     media:
       upload_too_large: "⚠️ تعذّر إرفاق `{filename}` — حجمه {size_mb} MB يتجاوز حد الرفع في Discord لهذه القناة وهو {limit_mb} MB. اضغط الملف أو شارك رابطًا بدلًا من ذلك."
@@ -1318,15 +1318,15 @@ platform:
       thinking: "يفكّر..."
       still_working: "لا يزال يعمل… ({elapsed})"
     task_card:
-      title: "Xinyuan يعمل"
+      title: "Mickvvw يعمل"
     slash:
       reply_truncated: "\n\n_[اقتُطع الرد: {count} جزء إضافي تجاوز حد الردود المؤقتة في Slack.]_"
       running: "جارٍ تشغيل `/{command}`…"
     handoff:
-      seed: ":thread: تسليم Xinyuan — *{name}*"
+      seed: ":thread: تسليم Mickvvw — *{name}*"
   matrix:
     handoff:
-      default_name: "جلسة Xinyuan"
+      default_name: "جلسة Mickvvw"
     media:
       image_download_failed: "تعذّر عليّ تنزيل الصورة ورفعها إلى Matrix. لم يُعرض عنوان المصدر لأنه قد يحتوي على رموز وصول خاصة."
     approval:
@@ -1384,7 +1384,7 @@ platform:
       header: "سؤال"
       question: "❓ {question}"
     typing:
-      thinking: "Xinyuan يفكّر…"
+      thinking: "Mickvvw يفكّر…"
       interrupted: "(قُطع)"
       no_reply: "(لا ردّ)"
     attachment_fallback:
@@ -1445,13 +1445,13 @@ platform:
       size_downgraded: "حجم {label} البالغ {size_mb} ميغابايت يتجاوز حد {cap}؛ أُرسل كملف بدلًا من ذلك."
   email:
     image_line: "صورة: {url}"
-    standalone_subject: "Xinyuan Agent"
+    standalone_subject: "Mickvvw Agent"
   dingtalk:
     emotion:
       thinking: "🤔يفكّر"
       done: "🥳تم"
   irc:
-    quit_message: "جارٍ إيقاف تشغيل Xinyuan Agent"
+    quit_message: "جارٍ إيقاف تشغيل Mickvvw Agent"
     standalone_quit: "تم التسليم"
   relay:
     confirm_approve_once: "الموافقة مرة"
@@ -1473,7 +1473,7 @@ slash:
   sethome:
     description: "تعيين هذه المحادثة كقناة رئيسية"
   update:
-    description: "تحديث Xinyuan Agent إلى أحدث إصدار"
+    description: "تحديث Mickvvw Agent إلى أحدث إصدار"
   category:
     session: "الجلسة"
     configuration: "الإعدادات"
@@ -1491,7 +1491,7 @@ slash:
     plugin_default_desc: "تشغيل /{name}"
     plugin_command_desc: "أمر إضافة"
   hermes:
-    description: "التحدث مع Xinyuan أو تشغيل أمر فرعي"
+    description: "التحدث مع Mickvvw أو تشغيل أمر فرعي"
   start:
     description: "استقبال إشارات بدء المنصة دون ردّ"
   new:
@@ -1525,7 +1525,7 @@ slash:
   rollback:
     description: "سرد نقاط حفظ نظام الملفات أو استعادتها (الاستعادة تحتفظ بتعديلاتك اليدوية؛ --all يتجاوز ذلك)"
   snapshot:
-    description: "إنشاء أو استعادة لقطات لإعدادات Xinyuan وحالته"
+    description: "إنشاء أو استعادة لقطات لإعدادات Mickvvw وحالته"
   export:
     description: "تصدير ملف تعريفي (الإعدادات والمهارات والسمة) إلى أرشيف قابل للمشاركة"
   import:
@@ -1547,7 +1547,7 @@ slash:
   steer:
     description: "إدراج رسالة بعد استدعاء الأداة التالي دون مقاطعة"
   goal:
-    description: "تعيين هدف دائم يعمل عليه Xinyuan عبر الأدوار حتى تحقيقه"
+    description: "تعيين هدف دائم يعمل عليه Mickvvw عبر الأدوار حتى تحقيقه"
   heartbeat:
     description: "تعيين مطالبة متكررة تعود إلى هذه الجلسة عند الخمول"
   refine:
@@ -1559,7 +1559,7 @@ slash:
   plan:
     description: "كتابة خطة تنفيذ بصيغة markdown في .hermes/plans/ دون تنفيذ أي شيء"
   initiate-setup:
-    description: "شغّل الإعداد الأول: يتعرّف عليك ويجهّز Xinyuan حولك"
+    description: "شغّل الإعداد الأول: يتعرّف عليك ويجهّز Mickvvw حولك"
   moa:
     description: "تشغيل مطالبة واحدة عبر الإعداد الافتراضي لـ Mixture of Agents ثم استعادة نموذجك"
   subgoal:
@@ -1613,9 +1613,9 @@ slash:
   voice:
     description: "تبديل وضع الصوت"
   wake:
-    description: "تبديل مستمع كلمة التنبيه 'Hey Xinyuan'"
+    description: "تبديل مستمع كلمة التنبيه 'Hey Mickvvw'"
   busy:
-    description: "التحكم في سلوك الرسائل أثناء عمل Xinyuan"
+    description: "التحكم في سلوك الرسائل أثناء عمل Mickvvw"
   tools:
     description: "إدارة الأدوات: /tools [list|disable|enable] [name...]"
   toolsets:
@@ -1681,7 +1681,7 @@ slash:
   image:
     description: "إرفاق ملف صورة محلي لمطالبتك التالية"
   version:
-    description: "عرض إصدار Xinyuan Agent"
+    description: "عرض إصدار Mickvvw Agent"
   debug:
     description: "رفع تقرير تصحيح الأخطاء (معلومات النظام والسجلات) والحصول على روابط قابلة للمشاركة"
   quit:
@@ -1739,8 +1739,8 @@ cli:
     no_saved_card_add_funds_hint: "لا توجد بطاقة محفوظة — «إضافة أموال» يرشدك خطوة بخطوة لإضافة واحدة."
     actions_require_admin: "تتطلب إجراءات الفوترة مشرفًا أو مالكًا للمؤسسة."
     remote_spending_off_for_org: "الإنفاق عن بُعد معطّل لهذه المؤسسة."
-    killswitch_reason_overview: "يمكن لمشرف الفوترة تفعيله من صفحة Xinyuan Agent في البوابة لإضافة أموال من هنا."
-    killswitch_reason_buy: "يمكن لمشرف الفوترة تفعيله من صفحة Xinyuan Agent في البوابة قبل إضافة الأموال."
+    killswitch_reason_overview: "يمكن لمشرف الفوترة تفعيله من صفحة Mickvvw Agent في البوابة لإضافة أموال من هنا."
+    killswitch_reason_buy: "يمكن لمشرف الفوترة تفعيله من صفحة Mickvvw Agent في البوابة قبل إضافة الأموال."
     add_funds_now_hint: "أضف أموالًا الآن — خصم واحد يُضاف إلى رصيدك اليوم."
     refill_when_low_amounts: "إعادة التعبئة عند الانخفاض — يُخصم {reload_to} تلقائيًا عندما ينخفض رصيدك إلى أقل من {threshold}."
     refill_when_low_generic: "إعادة التعبئة عند الانخفاض — يُخصم من بطاقتك تلقائيًا عندما ينخفض رصيدك إلى أقل من المبلغ الذي تحدده."
@@ -1796,7 +1796,7 @@ cli:
     charge_failed_card_declined: "🔴 رُفضت بطاقتك. جرّب بطاقة أخرى في البوابة."
     charge_failed_generic: "🔴 لم تنجح عملية الخصم ({reason})."
     charge_error_no_payment_method: "💳 لا توجد بطاقة محفوظة — أعد تعبئة الرصيد وأدِر الفوترة من البوابة."
-    charge_error_remote_spending_disabled: "الإنفاق عن بُعد معطّل لهذا الحساب — يمكن لمشرف الفوترة تفعيله من صفحة Xinyuan Agent في البوابة."
+    charge_error_remote_spending_disabled: "الإنفاق عن بُعد معطّل لهذا الحساب — يمكن لمشرف الفوترة تفعيله من صفحة Mickvvw Agent في البوابة."
     charge_error_role_required: "تتطلب إضافة الأموال مشرفًا أو مالكًا للمؤسسة. اطلب من مشرف، أو أدِرها من البوابة."
     charge_error_idempotency_conflict: "🔴 استُخدم مفتاح الخصم هذا من قبل لمبلغ مختلف. ابدأ عملية إعادة تعبئة جديدة."
     revoked_by_admin: "أوقف مشرف الإنفاق من هذه الطرفية."
@@ -1813,7 +1813,7 @@ cli:
     charge_stepup_noninteractive: "شغّل `hermes portal` واسمح بالإنفاق عن بُعد، ثم أعد المحاولة."
     charge_stepup_declined: "لم تُجرَ أي عملية خصم. شغّل /topup عندما تريد السماح بالإنفاق عن بُعد."
     charge_stepup_not_granted: "تعذّر السماح بالإنفاق عن بُعد — يجب أن يوافق عليه مشرف أو مالك للمؤسسة. لم يُخصم من بطاقتك."
-    allowed_but_org_off: "الإنفاق عن بُعد مسموح لهذه الطرفية، لكنه ما زال معطّلًا لهذه المؤسسة. يمكن لمشرف الفوترة تفعيله من صفحة Xinyuan Agent في البوابة، ثم شغّل /topup مرة أخرى."
+    allowed_but_org_off: "الإنفاق عن بُعد مسموح لهذه الطرفية، لكنه ما زال معطّلًا لهذه المؤسسة. يمكن لمشرف الفوترة تفعيله من صفحة Mickvvw Agent في البوابة، ثم شغّل /topup مرة أخرى."
     allowed_no_card: "تم السماح بالإنفاق عن بُعد — لكن لا توجد بطاقة محفوظة بعد."
     topup_on_portal_to_continue: "أعد تعبئة الرصيد وأدِر الفوترة من البوابة للمتابعة."
     allowed_run_topup: "تم السماح بالإنفاق عن بُعد. شغّل /topup للمتابعة."
@@ -1969,7 +1969,7 @@ cli:
     usage_switch_provider: "تبديل المزوّد"
     usage_refresh: "إعادة جلب قوائم النماذج الحية"
     choice_switch_anyway: "التبديل على أي حال"
-    desc_switch_anyway: "استخدام هذا النموذج لجلسة Xinyuan الحالية."
+    desc_switch_anyway: "استخدام هذا النموذج لجلسة Mickvvw الحالية."
     choice_cancel: "إلغاء"
     desc_keep_current_model: "الاحتفاظ بالنموذج الحالي."
     switch_cancelled: "أُلغي تبديل النموذج."
@@ -2117,7 +2117,7 @@ cli:
     images_attached_one: "📎 {count} صورة مرفقة"
     images_attached_other: "📎 {count} صور مرفقة"
     command_interrupted: "قُطع الأمر."
-    welcome: "مرحبًا بك في Xinyuan Agent! اكتب رسالتك أو /help لعرض الأوامر."
+    welcome: "مرحبًا بك في Mickvvw Agent! اكتب رسالتك أو /help لعرض الأوامر."
     activated_skills_label: "المهارات المفعّلة:"
     redaction_disabled_title: "⚠  إخفاء الأسرار معطّل"
     redaction_disabled_body: "(HERMES_REDACT_SECRETS={value}). قد تظهر مفاتيح API ورموز الوصول حرفيًا في مخرجات المحادثة وملفات JSON للجلسات والسجلات. اضبط {setting} في config.yaml لإعادة التفعيل."
@@ -2129,7 +2129,7 @@ cli:
     err_termux_app_missing: "تم اكتشاف حزمة أوامر Termux:API، لكن تطبيق Android غير موجود.\nثبّت/حدّث تطبيق Termux:API لنظام Android، ثم أعِد المحاولة بـ /voice on."
     err_mic_access: "يحتاج وضع الصوت إلى الوصول إلى الميكروفون.\nشغّل pkg install termux-api وثبّت تطبيق Termux:API لنظام Android، ثم أعِد المحاولة بـ /voice on."
     err_audio_capture: "يتطلب وضع الصوت التقاط الصوت."
-    err_stt_provider: "يتطلب وضع الصوت مزوّد STT للنسخ الصوتي.\nشغّل hermes tools واضبط تحويل الكلام إلى نص، ثم أعِد تشغيل Xinyuan."
+    err_stt_provider: "يتطلب وضع الصوت مزوّد STT للنسخ الصوتي.\nشغّل hermes tools واضبط تحويل الكلام إلى نص، ثم أعِد تشغيل Mickvvw."
     silence_autostop: "تم اكتشاف صمت، إيقاف تلقائي..."
     hint_continuous: "يتوقف تلقائيًا عند الصمت | {shortcut} للإيقاف والخروج من الوضع المستمر"
     hint_termux: "التقاط عبر Termux:API | {shortcut} للإيقاف"
@@ -2183,7 +2183,7 @@ cli:
     label_surface: "  الواجهة:      {surface}"
     label_new_session: "  جلسة جديدة:  {value}"
     mic_silent_warning: "⚠ الميكروفون لا يُرسل سوى الصمت — المستمع لا يسمع شيئًا."
-    mic_silent_macos_hint: "على macOS: System Settings > Privacy & Security > Microphone — اسمح للطرفية/Xinyuan، ثم /wake off ثم /wake on."
+    mic_silent_macos_hint: "على macOS: System Settings > Privacy & Security > Microphone — اسمح للطرفية/Mickvvw، ثم /wake off ثم /wake on."
     wake_enable_hint: "فعّل عبر /wake on"
     enable_first_hint: "فعّل وضع الصوت أولًا: /voice on"
     tts_no_provider: "تحذير: لا يوجد مزوّد TTS متاح. ثبّت edge-tts أو اضبط مفاتيح API."
@@ -2197,7 +2197,7 @@ cli:
   render:
     response_transformed: "[تم تحويل الرد بعد البث]"
     banner_tagline: "{name} - إطار عمل وكلاء الذكاء الاصطناعي"
-    banner_version: "Xinyuan Agent v{version} ({date})"
+    banner_version: "Mickvvw Agent v{version} ({date})"
   subagents:
     cannot_steer_process: "لا يمكن توجيه عمليات الخلفية؛ أوقفها أو اقرأ السجل."
     count_live: "{count} نشطة"
@@ -2279,7 +2279,7 @@ cli:
     failed: "فشل الاتصال"
     authorized_no_tools: "تم التصريح. الأدوات غير متاحة."
     connected: "متصل"
-    named_account: "سمّى Xinyuan حساب {name} هذا {alias}. يمكنك إعادة تسميته في أي وقت."
+    named_account: "سمّى Mickvvw حساب {name} هذا {alias}. يمكنك إعادة تسميته في أي وقت."
     waiting: "في الانتظار…"
   editor:
     only_interactive: "المحرّر الخارجي متاح فقط داخل واجهة سطر الأوامر التفاعلية."
@@ -2479,7 +2479,7 @@ cli:
     yolo_bypass_suffix: " (تجاوز YOLO نشط)"
     ctx_left_prefix: "{percent}% متبقٍ · "
     ctx_tokens_used: "{left}{used} / {max} رمزًا مستخدمًا"
-    status_title: "حالة Xinyuan CLI"
+    status_title: "حالة Mickvvw CLI"
     label_reasoning: "الاستدلال"
     label_approvals: "الموافقات"
     label_context: "السياق"
@@ -2622,9 +2622,9 @@ cli:
       short_queue: "يضيفه إلى قائمة انتظار الدور التالي"
       short_steer: "يوجّهه إلى التشغيل الحالي (بعد استدعاء الأداة التالي)"
       short_interrupt: "يعيد توجيه التشغيل الحالي فورًا"
-      long_queue: "سيضيف Enter إدخالك اللاحق إلى قائمة الانتظار بينما Xinyuan مشغول."
+      long_queue: "سيضيف Enter إدخالك اللاحق إلى قائمة الانتظار بينما Mickvvw مشغول."
       long_steer: "سيوجّه Enter رسالتك إلى التشغيل الحالي (بعد استدعاء الأداة التالي)."
-      long_interrupt: "سيعيد Enter توجيه التشغيل الحالي بينما Xinyuan مشغول؛ ولا يزال /stop يلغيه."
+      long_interrupt: "سيعيد Enter توجيه التشغيل الحالي بينما Mickvvw مشغول؛ ولا يزال /stop يلغيه."
       usage: "الاستخدام: /busy [queue|steer|interrupt|status]"
       status: "وضع الإدخال أثناء الانشغال: {mode}"
       enter_while_busy: "Enter أثناء الانشغال: {behavior}"
@@ -2696,7 +2696,7 @@ cli:
       stat_hint: "شغّل /diff --stat للحصول على ملخّص"
       stat_hint_session: "شغّل /diff session --stat للحصول على ملخّص"
       not_enabled: "نقاط الحفظ غير مفعّلة، لذا لا يوجد خط أساس للجلسة.\nفعّلها عبر: hermes --checkpoints\nأو في config.yaml: checkpoints: { enabled: true }\n(لا يزال /diff العادي يعمل — فهو يستخدم git مباشرة.)"
-      no_session_changes: "لا توجد تغييرات — لم يعدّل Xinyuan أي ملفات هنا بعد."
+      no_session_changes: "لا توجد تغييرات — لم يعدّل Mickvvw أي ملفات هنا بعد."
     rollback:
       not_enabled: "نقاط الحفظ غير مفعّلة.\nفعّلها عبر: hermes --checkpoints\nأو في config.yaml: checkpoints: { enabled: true }"
       none_here_showing_all: "لا توجد نقاط حفظ لـ {cwd} — يتم عرض جميع المجلدات."
@@ -3022,7 +3022,7 @@ cli:
       prompt_required: "الاستخدام: /heartbeat every <interval> <prompt> — المطالبة مطلوبة."
       invalid_label: "نبض غير صالح"
       set: "♥ تم ضبط النبض (كل {interval}): {prompt}"
-      set_note: "يعمل كدور عادي كلما كانت الجلسة خاملة وانقضى الفاصل الزمني. استخدم /heartbeat pause | resume | clear للإدارة؛ يبقى فقط ما دامت عملية Xinyuan هذه تعمل — استخدم `hermes cron` للجداول الدائمة."
+      set_note: "يعمل كدور عادي كلما كانت الجلسة خاملة وانقضى الفاصل الزمني. استخدم /heartbeat pause | resume | clear للإدارة؛ يبقى فقط ما دامت عملية Mickvvw هذه تعمل — استخدم `hermes cron` للجداول الدائمة."
     refine:
       nothing_yet: "لا شيء لتحسينه بعد — أرسل رسالة أولًا."
       empty: "لا شيء لتحسينه بعد — المحادثة فارغة."
@@ -3076,12 +3076,12 @@ cli:
       usage: "/timestamps [on|off|status]"
       label: "الطوابع الزمنية للرسائل"
     update:
-      managed_action: "تحديث Xinyuan Agent"
+      managed_action: "تحديث Mickvvw Agent"
       choice_update: "حدّث الآن"
-      choice_update_desc: "الخروج من الجلسة الحالية وتحديث Xinyuan Agent"
+      choice_update_desc: "الخروج من الجلسة الحالية وتحديث Mickvvw Agent"
       choice_cancel: "إلغاء"
       choice_cancel_desc: "الإبقاء على الجلسة الحالية"
-      title: "☤  تحديث Xinyuan Agent"
+      title: "☤  تحديث Mickvvw Agent"
       detail: "سيؤدي هذا إلى الخروج من الجلسة الحالية وتشغيل `hermes update`."
       cancelled: "🟡 أُلغي /update."
       launching: "☤ جارٍ بدء التحديث..."
@@ -3096,12 +3096,12 @@ cli:
   tip_line: "✦ نصيحة: {tip}"
   banner:
     context_too_low: "⚠️  طول السياق {tokens} رمزًا فقط — وهذا على الأرجح أقل مما يلزم لاستخدام الوكيل مع الأدوات."
-    context_minimum: "يحتاج Xinyuan إلى {tokens} رمزًا على الأقل. تستهلك مخططات الأدوات وموجّه النظام بادئة ثابتة كبيرة."
+    context_minimum: "يحتاج Mickvvw إلى {tokens} رمزًا على الأقل. تستهلك مخططات الأدوات وموجّه النظام بادئة ثابتة كبيرة."
     fix_ollama: "حل Ollama: OLLAMA_CONTEXT_LENGTH={tokens} ollama serve"
     fix_lm_studio: "حل LM Studio: عيّن طول السياق في إعدادات النموذج ← أعد تحميل النموذج"
     fix_local_server: "الحل: شغّل خادمك بسياق لا يقل عن {tokens_k}K (llama.cpp: -c {tokens})، أو عيّن model.ollama_num_ctx في config.yaml إلى النافذة التي يخدمها فعلًا"
     fix_config: "الحل: عيّن model.context_length في config.yaml، أو ارفع إعداد السياق في خادمك"
-    hermes_models_not_agentic: "⚠  نماذج Nous Research Hermes 3 و4 ليست وكيلية ولم تُصمَّم للاستخدام مع Xinyuan Agent."
+    hermes_models_not_agentic: "⚠  نماذج Nous Research Hermes 3 و4 ليست وكيلية ولم تُصمَّم للاستخدام مع Mickvvw Agent."
     hermes_models_lack_tools: "فهي تفتقر إلى قدرات استدعاء الأدوات اللازمة لسير عمل الوكيل. فكّر في استخدام نموذج وكيلي (Claude أو GPT أو Gemini أو DeepSeek وغيرها)."
     hermes_models_switch_hint: "بدّل عبر: /model sonnet  أو  /model gpt5"
     project_skills_loaded: "◆ تم تحميل {count} من مهارات المشروع من هذا المستودع"
@@ -3151,9 +3151,9 @@ cli:
     the_provider: "المزوّد"
     the_current_model: "النموذج الحالي"
     with_details: "{lead}\nالتفاصيل: {details}"
-    agent_init_failed: "تعذّر على Xinyuan بدء الاتصال بالنموذج: {error}. لم تُرسل رسالتك. شغّل `hermes doctor` لفحص الإعداد، أو /model لاختيار مزوّد آخر."
+    agent_init_failed: "تعذّر على Mickvvw بدء الاتصال بالنموذج: {error}. لم تُرسل رسالتك. شغّل `hermes doctor` لفحص الإعداد، أو /model لاختيار مزوّد آخر."
   gateway:
-    starting: "جارٍ تشغيل بوّابة Xinyuan (منصات المراسلة)..."
+    starting: "جارٍ تشغيل بوّابة Mickvvw (منصات المراسلة)..."
   gateway_status:
     header: "(✿◠‿◠) حالة البوّابة"
     platform_config_header: "إعدادات منصات المراسلة:"
@@ -3468,15 +3468,15 @@ explainer:
   persistence:
     compression: "أُوقف الدور لأن عملية أخرى كانت تضغط هذه الجلسة. من المفترض أن رسالتك محفوظة بالفعل — يُرجى إرسالها مجددًا بعد انتهاء الضغط."
     compression_closed: "أُوقف الدور لأن هذه الجلسة جرى تدويرها بضغط السياق ولم يُمكن اعتماد استمرارها الحيّ. التخزين نفسه سليم — حدّث العميل (أو ابدأ دورًا جديدًا) ليلتقط معرّف الجلسة الجديد، ثم أرسل رسالتك مجددًا."
-    turn_lease: "أُوقف الدور لأن عملية Xinyuan أخرى استولت على هذه الجلسة. لم يُحفظ ردّك — انتظر انتهاء العملية الأخرى، ثم أرسل رسالتك مجددًا."
-    session_row_missing: "حُذفت هذه الجلسة من التخزين بينما كانت المحادثة لا تزال مفتوحة، ولم يستطع Xinyuan إعادة إنشائها، فلم تُحفظ هذه الرسالة. أرسل رسالتك مجددًا؛ وإن استمر الفشل، شغّل `hermes {profile_arg}doctor`."
-    locked: "أُوقف الدور لأن تخزين الجلسة كان مشغولًا (عملية Xinyuan أخرى كانت تكتب في قاعدة بيانات الحالة). من المفترض أن رسالتك محفوظة بالفعل — يُرجى إرسالها مجددًا بعد لحظات."
-    replaced: "استُبدل ملف قاعدة بيانات الجلسات أثناء تشغيل Xinyuan، فلم تُحفظ هذه الرسالة (تُحتفظ نسخة منها في {home}/sessions/). أوقف Xinyuan (`hermes {profile_arg}gateway stop`)، وشغّل `hermes {profile_arg}doctor` — وليس `hermes {profile_arg}doctor --fix`، لأنه سيُصلح الملف الخطأ في مكانه — ثم شغّله من جديد وأرسل رسالتك مرة أخرى. خطوات الاسترداد المتقدمة موجودة في السجل."
-    deleted_wal: "لا تزال عملية Xinyuan أخرى تحتفظ بنسخة قديمة من سجل الكتابة المسبقة لقاعدة بيانات الجلسات، فتوقّف Xinyuan عن الكتابة حفاظًا على سلامة الملف ولم تُحفظ هذه الرسالة (تُحتفظ نسخة منها في {home}/sessions/). لم يُفقد شيء. أنهِ كل عمليات Xinyuan على هذا الملف التعريفي (تطبيق سطح المكتب، `hermes {profile_arg}gateway stop`، لوحة التحكم، cron)، وشغّل `hermes {profile_arg}doctor` — فهو يسمّي أي عملية لا تزال تحتفظ بالسجل — ثم شغّل Xinyuan من جديد وأرسل رسالتك مرة أخرى. لا تشغّل `doctor --fix` ولا تحذف أي ملفات state.db أثناء تشغيلها. الدليل: {recovery_docs}"
+    turn_lease: "أُوقف الدور لأن عملية Mickvvw أخرى استولت على هذه الجلسة. لم يُحفظ ردّك — انتظر انتهاء العملية الأخرى، ثم أرسل رسالتك مجددًا."
+    session_row_missing: "حُذفت هذه الجلسة من التخزين بينما كانت المحادثة لا تزال مفتوحة، ولم يستطع Mickvvw إعادة إنشائها، فلم تُحفظ هذه الرسالة. أرسل رسالتك مجددًا؛ وإن استمر الفشل، شغّل `hermes {profile_arg}doctor`."
+    locked: "أُوقف الدور لأن تخزين الجلسة كان مشغولًا (عملية Mickvvw أخرى كانت تكتب في قاعدة بيانات الحالة). من المفترض أن رسالتك محفوظة بالفعل — يُرجى إرسالها مجددًا بعد لحظات."
+    replaced: "استُبدل ملف قاعدة بيانات الجلسات أثناء تشغيل Mickvvw، فلم تُحفظ هذه الرسالة (تُحتفظ نسخة منها في {home}/sessions/). أوقف Mickvvw (`hermes {profile_arg}gateway stop`)، وشغّل `hermes {profile_arg}doctor` — وليس `hermes {profile_arg}doctor --fix`، لأنه سيُصلح الملف الخطأ في مكانه — ثم شغّله من جديد وأرسل رسالتك مرة أخرى. خطوات الاسترداد المتقدمة موجودة في السجل."
+    deleted_wal: "لا تزال عملية Mickvvw أخرى تحتفظ بنسخة قديمة من سجل الكتابة المسبقة لقاعدة بيانات الجلسات، فتوقّف Mickvvw عن الكتابة حفاظًا على سلامة الملف ولم تُحفظ هذه الرسالة (تُحتفظ نسخة منها في {home}/sessions/). لم يُفقد شيء. أنهِ كل عمليات Mickvvw على هذا الملف التعريفي (تطبيق سطح المكتب، `hermes {profile_arg}gateway stop`، لوحة التحكم، cron)، وشغّل `hermes {profile_arg}doctor` — فهو يسمّي أي عملية لا تزال تحتفظ بالسجل — ثم شغّل Mickvvw من جديد وأرسل رسالتك مرة أخرى. لا تشغّل `doctor --fix` ولا تحذف أي ملفات state.db أثناء تشغيلها. الدليل: {recovery_docs}"
     corrupt: "أُوقف الدور لأن قاعدة بيانات الحالة أبلغت عن تلف بنيوي (كان النص الكامل سيُفقد عند إعادة التشغيل). لن يفيد تحرير مساحة على القرص. خيارات الاسترداد:\n1. شغّل `hermes {profile_arg}doctor --fix`\n2. أوقف البوّابة، ثم استردّ عبر:\n   hermes {profile_arg}sessions recover --source {db_path} --inspect-only\n   (إن أبلغ بأن الاسترداد ممكن) hermes {profile_arg}sessions recover --source {db_path} --output recovered-state.db\n   — يأخذ الاسترداد لقطة من الملف المتضرر أولًا؛ لا تشغّل `sqlite3 ... \".recover\"` على state.db الحيّ، فقد يزيد sqlite3 CLI المعرّض للثغرات من تلفه\n3. استعد من نسخة احتياطية في {backups_dir}/\nثم أرسل رسالتك مجددًا."
-    fts_index: "أُوقف الدور لأن فهرس بحث الجلسات (FTS5) تالف ولم يُمكن فصله، فلم تُحفظ هذه الرسالة. مخزن الرسائل نفسه غير متضرر: لا تشغّل أدوات الاسترداد ولا تستعد نسخة احتياطية. شغّل `hermes {profile_arg}doctor --fix` (أو أعد تشغيل Xinyuan، فهو يُصلح الفهرس عند الفتح)، ثم أرسل رسالتك مجددًا."
-    disk: "تعذّر على Xinyuan حفظ هذه المحادثة على القرص، فتوقّف بدلًا من أن يفقد رسائلك. القرص ممتلئ على الأرجح: حرّر بعض المساحة (أو أصلح أذونات {home}/state.db)، ثم أرسل رسالتك مجددًا."
-    default: "تعذّر على Xinyuan حفظ هذه المحادثة، فتوقّف بدلًا من أن يفقد رسائلك. الأسباب المحتملة: لم يتبقّ مكان على القرص، أو عملية Xinyuan أخرى تحتجز قاعدة البيانات. أغلق نوافذ Xinyuan الأخرى، وشغّل `hermes {profile_arg}doctor` للتحقق من التخزين، ثم أرسل رسالتك مجددًا."
+    fts_index: "أُوقف الدور لأن فهرس بحث الجلسات (FTS5) تالف ولم يُمكن فصله، فلم تُحفظ هذه الرسالة. مخزن الرسائل نفسه غير متضرر: لا تشغّل أدوات الاسترداد ولا تستعد نسخة احتياطية. شغّل `hermes {profile_arg}doctor --fix` (أو أعد تشغيل Mickvvw، فهو يُصلح الفهرس عند الفتح)، ثم أرسل رسالتك مجددًا."
+    disk: "تعذّر على Mickvvw حفظ هذه المحادثة على القرص، فتوقّف بدلًا من أن يفقد رسائلك. القرص ممتلئ على الأرجح: حرّر بعض المساحة (أو أصلح أذونات {home}/state.db)، ثم أرسل رسالتك مجددًا."
+    default: "تعذّر على Mickvvw حفظ هذه المحادثة، فتوقّف بدلًا من أن يفقد رسائلك. الأسباب المحتملة: لم يتبقّ مكان على القرص، أو عملية Mickvvw أخرى تحتجز قاعدة البيانات. أغلق نوافذ Mickvvw الأخرى، وشغّل `hermes {profile_arg}doctor` للتحقق من التخزين، ثم أرسل رسالتك مجددًا."
   file_mutation:
     header: "⚠️ مدقّق تعديل الملفات: فشل {count} من تعديلات الملفات في هذا الدور رغم أي صياغة أعلاه قد توحي بخلاف ذلك. شغّل `git status` أو `read_file` للتأكد ممّا طُبّق فعلًا."
     entry: "  • `{path}` — [{tool}] {preview}"
@@ -3527,7 +3527,7 @@ tips:
   t040: "اجمع عدة مراجع معًا: \"راجع @file:main.py و@file:test.py للتحقق من الاتساق.\""
   t041: "Alt+Enter يدرج سطرًا جديدًا للإدخال متعدد الأسطر. (Windows Terminal يلتقط Alt+Enter — استخدم Ctrl+Enter بدلًا منه.)"
   t042: "Ctrl+C يقاطع الوكيل. اضغطه مرتين خلال ثانيتين لفرض الخروج."
-  t043: "Ctrl+Z يعلّق Xinyuan في الخلفية — شغّل fg في shell للاستئناف."
+  t043: "Ctrl+Z يعلّق Mickvvw في الخلفية — شغّل fg في shell للاستئناف."
   t044: "Tab يقبل النص الشبحي للاقتراح التلقائي أو يكمل أوامر / تلقائيًا."
   t045: "اكتب رسالة جديدة أثناء عمل الوكيل لمقاطعته وإعادة توجيهه."
   t046: "Alt+V يلصق صورة من الحافظة في المحادثة."
@@ -3556,15 +3556,15 @@ tips:
   t069: "hermes skills tap add myorg/skills-repo يضيف مصدر مهارات مخصصًا من GitHub."
   t070: "hermes skills snapshot export setup.json يصدّر إعدادات مهاراتك للنسخ الاحتياطي أو المشاركة."
   t071: "hermes mcp add github --command npx يضيف خوادم MCP من سطر الأوامر."
-  t072: "hermes mcp serve يشغّل Xinyuan نفسه كخادم MCP لوكلاء آخرين."
+  t072: "hermes mcp serve يشغّل Mickvvw نفسه كخادم MCP لوكلاء آخرين."
   t073: "hermes auth add يتيح لك إضافة عدة مفاتيح API للتناوب ضمن مجموعة بيانات الاعتماد."
   t074: "hermes completion bash >> ~/.bashrc يفعّل الإكمال بمفتاح Tab لجميع الأوامر والملفات التعريفية."
   t075: "hermes logs -f يتابع agent.log في الوقت الفعلي. و--level WARNING --since 1h يصفّي المخرجات."
-  t076: "hermes backup ينشئ نسخة احتياطية مضغوطة (zip) لمجلد Xinyuan الرئيسي بالكامل."
+  t076: "hermes backup ينشئ نسخة احتياطية مضغوطة (zip) لمجلد Mickvvw الرئيسي بالكامل."
   t077: "hermes profile create coder ينشئ ملفًا تعريفيًا معزولًا يصبح أمرًا مستقلًا بذاته."
   t078: "hermes profile create work --clone ينسخ إعداداتك ومفاتيحك الحالية إلى ملف تعريفي جديد."
   t079: "hermes update يزامن المهارات المضمّنة الجديدة مع جميع الملفات التعريفية تلقائيًا."
-  t080: "hermes gateway install يثبّت Xinyuan كخدمة نظام (systemd/launchd)."
+  t080: "hermes gateway install يثبّت Mickvvw كخدمة نظام (systemd/launchd)."
   t081: "hermes memory setup يتيح لك إعداد مزوّد ذاكرة خارجي (Honcho وMem0 وغيرهما)."
   t082: "hermes webhook subscribe ينشئ مسارات webhook مدفوعة بالأحداث مع التحقق عبر HMAC."
   t083: "وفّر المال: hermes tools يعطّل الأدوات غير المستخدمة، وhermes skills config يقلّص المهارات."
@@ -3591,7 +3591,7 @@ tips:
   t104: "الأوامر السريعة في config.yaml تشغّل أوامر shell فورًا دون استهلاك أي رموز."
   t105: "يمكنك تعريف شخصيات مخصصة في config.yaml تحت agent.personalities."
   t106: "يتحكّم provider_routing في ترتيب مزوّدي OpenRouter وقوائم السماح والحظر الخاصة بهم."
-  t107: "تشغّل execute_code سكربتات Python تستدعي أدوات Xinyuan برمجيًا — وتبقى النتائج خارج السياق."
+  t107: "تشغّل execute_code سكربتات Python تستدعي أدوات Mickvvw برمجيًا — وتبقى النتائج خارج السياق."
   t108: "تشغّل delegate_task حتى 10 وكلاء فرعيين متزامنين افتراضيًا (delegation.max_concurrent_children) بسياقات معزولة للعمل المتوازي."
   t109: "تعمل web_extract على روابط PDF — مرّر أي رابط PDF وستحوّله إلى markdown."
   t110: "تعتمد search_files على ripgrep وهي أسرع من grep — استخدمها بدلًا من grep في الطرفية."
@@ -3617,7 +3617,7 @@ tips:
   t130: "إذا تشارك ملفان تعريفيان رمز بوت واحدًا بالخطأ، تُحظر البوّابة الثانية مع رسالة خطأ واضحة."
   t131: "تولّد الجلسات عناوين وصفية تلقائيًا بعد أول تبادل — لا حاجة للتسمية اليدوية."
   t132: "تدعم عناوين الجلسات التسلسل: \"my project\" → \"my project #2\" → \"my project #3\"."
-  t133: "عند الخروج، يطبع Xinyuan أمر استئناف يتضمن معرّف الجلسة وإحصاءاتها."
+  t133: "عند الخروج، يطبع Mickvvw أمر استئناف يتضمن معرّف الجلسة وإحصاءاتها."
   t134: "يصدّر hermes sessions export backup.jsonl جميع الجلسات للنسخ الاحتياطي أو التحليل."
   t135: "يستأنف hermes -r SESSION_ID أي جلسة سابقة محددة عبر معرّفها."
   t136: "الذاكرة لقطة مجمّدة — تظهر التغييرات في موجّه النظام فقط عند بدء الجلسة التالية."
@@ -3641,10 +3641,10 @@ tips:
   t154: "يفعّل /voice on وضع الصوت في سطر الأوامر. ويبدّل Ctrl+B تسجيل اضغط-للتحدّث."
   t155: "يشغّل بث تحويل النص إلى كلام الجمل أثناء توليدها — فلا تنتظر الاستجابة الكاملة."
   t156: "تُنسخ الرسائل الصوتية على Telegram وDiscord وWhatsApp وSlack إلى نص تلقائيًا."
-  t157: "يعمل Xinyuan على 21 منصة مراسلة: Telegram وDiscord وSlack وWhatsApp وSignal وMatrix وIRC وMicrosoft Teams والبريد الإلكتروني وغيرها."
+  t157: "يعمل Mickvvw على 21 منصة مراسلة: Telegram وDiscord وSlack وWhatsApp وSignal وMatrix وIRC وMicrosoft Teams والبريد الإلكتروني وغيرها."
   t158: "يثبّت hermes gateway install البوّابة كخدمة نظام تبدأ عند الإقلاع."
   t159: "يستخدم DingTalk وضع Stream — لا حاجة إلى webhooks أو عنوان URL عام."
-  t160: "يجلب BlueBubbles خدمة iMessage إلى Xinyuan عبر خادم macOS محلي."
+  t160: "يجلب BlueBubbles خدمة iMessage إلى Mickvvw عبر خادم macOS محلي."
   t161: "تدعم مسارات webhook التحقق عبر HMAC وحدّ المعدّل وتصفية الأحداث."
   t162: "يوفّر خادم API نقطة نهاية متوافقة مع OpenAI تعمل مع Open WebUI وLibreChat."
   t163: "وضع القناة الصوتية في Discord: ينضم البوت إلى القناة الصوتية وينسخ الكلام ويردّ صوتيًا."
@@ -3661,7 +3661,7 @@ tips:
   t174: "يُضغط السياق تلقائيًا عند بلوغه الحد — تُدفع الذكريات إلى الذاكرة ويُلخَّص السجل."
   t175: "يتحوّل لون شريط الحالة إلى الأصفر ثم البرتقالي ثم الأحمر كلما امتلأ السياق."
   t176: "SOUL.md هو ملف الهوية الأساسي للوكيل — خصّصه لتشكيل سلوكه."
-  t177: "يحمّل Xinyuan سياق المشروع من .hermes.md أو AGENTS.md أو CLAUDE.md أو .cursorrules (أول تطابق)."
+  t177: "يحمّل Mickvvw سياق المشروع من .hermes.md أو AGENTS.md أو CLAUDE.md أو .cursorrules (أول تطابق)."
   t178: "تُكتشف ملفات AGENTS.md في المجلدات الفرعية تدريجيًا أثناء تنقّل الوكيل بين المجلدات."
   t179: "تُحدّ ملفات السياق بـ 20,000 حرف مع اقتطاع ذكي يحتفظ بالبداية والنهاية."
   t180: "خمسة مزوّدين للمتصفح: Chromium محلي وBrowserbase وBrowser Use وCamofox وFirecrawl."
@@ -3692,7 +3692,7 @@ tips:
   t205: "تدعم أوامر الشرطة المائلة مطابقة البادئة: /h يعني /help، و/mod يعني /model."
   t206: "سحب مسار ملف إلى الطرفية يرفق الصور تلقائيًا أو يرسل الملف كسياق."
   t207: "يسرد ملف .worktreeinclude في جذر مستودعك الملفات المتجاهلة في git التي تُنسخ إلى worktrees."
-  t208: "يشغّل hermes acp نظام Xinyuan كخادم ACP للتكامل مع VS Code وZed وJetBrains."
+  t208: "يشغّل hermes acp نظام Mickvvw كخادم ACP للتكامل مع VS Code وZed وJetBrains."
   t209: "المزوّدون المخصصون: احفظ نقاط نهاية مسمّاة في config.yaml تحت custom_providers."
   t210: "يحقن HERMES_EPHEMERAL_SYSTEM_PROMPT موجّه نظام لا يُحفظ في السجل أبدًا."
   t211: "يدعم credential_pool_strategies استراتيجيات التدوير fill_first وround_robin وleast_used وrandom."
@@ -3703,11 +3703,11 @@ tips:
   t216: "يمكن للمهام المجدولة إرفاق سكربت Python (--script) تُحقن مخرجاته القياسية في المطالبة كسياق."
   t217: "تُحفظ سكربتات المهام المجدولة في ~/.hermes/scripts/ وتعمل قبل الوكيل — مثالية لخطوط جمع البيانات."
   t218: "يحقن prefill_messages_file في config.yaml أمثلة few-shot في كل استدعاء API، دون حفظها في السجل أبدًا."
-  t219: "يحلّ SOUL.md بالكامل محل الهوية الافتراضية للوكيل — أعد كتابته لتجعل Xinyuan خاصًا بك."
+  t219: "يحلّ SOUL.md بالكامل محل الهوية الافتراضية للوكيل — أعد كتابته لتجعل Mickvvw خاصًا بك."
   t220: "يُملأ SOUL.md تلقائيًا بشخصية افتراضية عند أول تشغيل. عدّله لتخصيصه."
   t221: "يخصّص /compress <focus topic> 60-70% من ميزانية الملخص لموضوعك ويقلّص الباقي بقوة."
   t222: "في الضغط الثاني وما بعده، يحدّث الضاغط الملخص السابق بدلًا من البدء من الصفر."
-  t223: "قبل إعادة ضبط جلسة البوّابة، يدفع Xinyuan الحقائق المهمة إلى الذاكرة تلقائيًا في الخلفية."
+  t223: "قبل إعادة ضبط جلسة البوّابة، يدفع Mickvvw الحقائق المهمة إلى الذاكرة تلقائيًا في الخلفية."
   t224: "يعالج network.force_ipv4: true في config.yaml التجمّد على الخوادم ذات IPv6 المعطوب — عبر تعديل socket أثناء التشغيل."
   t225: "تشرح أداة terminal رموز الخروج الشائعة: إرجاع grep للقيمة 1 = 'لا توجد نتائج (ليس خطأ)'."
   t226: "تُعاد محاولة أوامر الطرفية الأمامية الفاشلة تلقائيًا حتى 3 مرات بتراجع أُسّي (2 ثانية، 4 ثوانٍ، 8 ثوانٍ)."
@@ -3729,7 +3729,7 @@ tips:
   t242: "يمكن لأي موقع ويب عرض مهارات عبر /.well-known/skills/index.json — ويكتشفها مركز المهارات تلقائيًا."
   t243: "يتتبّع سجل تدقيق المهارات في ~/.hermes/skills/.hub/audit.log كل عملية تثبيت وإزالة."
   t244: "تُنظَّف worktrees القديمة في git تلقائيًا عند البدء: تُحذف الأشجار النظيفة المدمجة بالكامل؛ ويُحفظ دائمًا أي عمل غير مكتمل أو غير مدفوع."
-  t245: "تحدّد الملفات التعريفية نطاق حالة Xinyuan عبر HERMES_HOME؛ وتحتفظ عمليات الأدوات الفرعية على المضيف بـ HOME الحقيقي ما لم يكن terminal.home_mode هو profile."
+  t245: "تحدّد الملفات التعريفية نطاق حالة Mickvvw عبر HERMES_HOME؛ وتحتفظ عمليات الأدوات الفرعية على المضيف بـ HOME الحقيقي ما لم يكن terminal.home_mode هو profile."
   t246: "يضبط متغير البيئة HERMES_HOME_MODE (ثماني، مثل 0701) صلاحيات مخصصة للمجلد لتمكين خادم الويب من عبوره."
   t247: "وضع الحاوية: ضع .container-mode في HERMES_HOME وسينفّذ سطر أوامر المضيف نفسه تلقائيًا داخل الحاوية."
   t248: "لـ Ctrl+C خمسة مستويات أولوية: إلغاء التسجيل ← إلغاء المطالبات ← إلغاء المنتقي ← قطع الوكيل ← الخروج."
@@ -3769,13 +3769,13 @@ tips:
   t282: "تحصل المهارات من المستودعات الموثوقة (NousResearch) على مستوى الأمان 'trusted'؛ وتخضع مهارات المجتمع لفحص إضافي."
   t283: "يحتفظ حجر المهارات في ~/.hermes/skills/.hub/quarantine/ بالمهارات المنتظرة للمراجعة الأمنية."
   t284: "يحقن /steer <prompt> ملاحظة بعد استدعاء الأداة التالي — لتوجيه المسار أثناء المهمة دون قطعها."
-  t285: "يحدّد /goal <text> هدفًا دائمًا بأسلوب حلقة Ralph — يواصل Xinyuan تلقائيًا دورًا بعد دور حتى يقرّر حَكَم أن العمل تم."
-  t286: "/snapshot create [label] يحفظ لقطة كاملة لحالة إعدادات Xinyuan؛ ويُعيدها لاحقًا /snapshot restore <id>."
+  t285: "يحدّد /goal <text> هدفًا دائمًا بأسلوب حلقة Ralph — يواصل Mickvvw تلقائيًا دورًا بعد دور حتى يقرّر حَكَم أن العمل تم."
+  t286: "/snapshot create [label] يحفظ لقطة كاملة لحالة إعدادات Mickvvw؛ ويُعيدها لاحقًا /snapshot restore <id>."
   t287: "/copy [N] ينسخ آخر رد للمساعد إلى الحافظة، أو الرد رقم N من النهاية إذا حددت رقمًا."
   t288: "/redraw يُعيد رسم الواجهة بالكامل لإصلاح انحراف الطرفية بعد تغيير حجم tmux أو آثار التحديد بالفأرة."
   t289: "/agents (الاسم البديل /tasks) يعرض الوكلاء النشطين والمهام العاملة في الخلفية عبر الجلسة الحالية."
   t290: "/footer يبدّل تذييل البوّابة في الردود النهائية الذي يعرض النموذج ونسبة السياق ومجلد العمل الحالي."
-  t291: "/busy queue|steer|interrupt يحدد ما يفعله الضغط على Enter بينما Xinyuan يعمل."
+  t291: "/busy queue|steer|interrupt يحدد ما يفعله الضغط على Enter بينما Mickvvw يعمل."
   t292: "/topic في رسائل Telegram الخاصة يفعّل وضع المواضيع متعدد الجلسات الذي يديره المستخدم — و/topic <id> يستعيد جلسات سابقة في مكانها."
   t293: "/approve session|always يشغّل أمرًا خطيرًا قيد الانتظار بنطاق الثقة الذي تختاره؛ و/deny يرفضه."
   t294: "/restart يُعيد تشغيل البوّابة بسلاسة بعد إنهاء التشغيلات النشطة، ثم يُخطر مَن طلب ذلك عند العودة."
@@ -3800,7 +3800,7 @@ tips:
   t313: "Ctrl+G أو Ctrl+X Ctrl+E في TUI يفتح مخزن الإدخال في $EDITOR للمطالبات الطويلة متعددة الأسطر."
   t314: "يعرض TUI صيغ LaTeX في السطر — يصبح $E=mc^2$ رموزًا رياضية بـ Unicode بدلًا من TeX الخام."
   t315: "hermes dashboard يشغّل واجهة ويب محلية على 127.0.0.1:9119 — لا تخرج أي بيانات من localhost."
-  t316: "hermes dashboard يضمّن واجهة Xinyuan TUI كاملة في متصفحك عبر xterm.js وطرفية PTY فوق WebSocket."
+  t316: "hermes dashboard يضمّن واجهة Mickvvw TUI كاملة في متصفحك عبر xterm.js وطرفية PTY فوق WebSocket."
   t317: "ضع ملف YAML في ~/.hermes/dashboard-themes/ بلونَي لوحة اثنين لتغيير مظهر لوحة التحكم بالكامل."
   t318: "إضافات لوحة التحكم تعمل بمجرد وضعها: manifest.json + حزمة JS في ~/.hermes/dashboard-plugins/ — دون الحاجة إلى بناء npm."
   t319: "layoutVariant: cockpit في سمة لوحة التحكم يضيف شريطًا أيسر بعرض 260px يمكن للإضافات ملؤه عبر فتحة sidebar."
@@ -3838,7 +3838,7 @@ tips:
   t351: "hermes chat --source tool يعلّم المحادثات البرمجية كي لا تزدحم بها قائمة hermes sessions list."
   t352: "hermes dump --show-keys يضمّن بصمات مفاتيح API المحجوبة لتصحيح أخطاء أعمق مع الدعم."
   t353: "hermes sessions rename <ID> \"new title\" يُعيد تسمية أي جلسة سابقة؛ و hermes sessions delete <ID> يحذف واحدة."
-  t354: "hermes import يستعيد نسخة احتياطية كاملة لـ Xinyuan بصيغة zip؛ وتُستورد تصديرات الجلسات JSON/JSONL من صفحة Sessions في لوحة التحكم."
+  t354: "hermes import يستعيد نسخة احتياطية كاملة لـ Mickvvw بصيغة zip؛ وتُستورد تصديرات الجلسات JSON/JSONL من صفحة Sessions في لوحة التحكم."
   t355: "hermes fallback يدير سلسلة fallback_model تفاعليًا — دون تحرير config.yaml يدويًا."
   t356: "hermes pairing يدوّر رمز اقتران الرسائل الخاصة — وأول مَن يرسل رسالة بعد التدوير يحصل على الوصول إلى البوت."
   t357: "hermes setup يرشد المستخدمين الجدد عبر إعداد المزوّد والمفاتيح وربط المنصات في مسار تفاعلي واحد."

@@ -32,8 +32,8 @@ import { confirm } from '@/store/confirm'
 import { $activeConnectionId } from '@/store/connections'
 import { recordFeatureUse, settingsArea } from '@/store/desktop-metrics'
 import { bindingsFor } from '@/store/keybinds'
-import { notifyError } from '@/store/notifications'
 import { $localModelsEnabled } from '@/store/local-models-flag'
+import { notifyError } from '@/store/notifications'
 import { $settingsScopeProfile } from '@/store/settings-scope'
 
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
@@ -45,11 +45,12 @@ import { AboutSettings } from './about-settings'
 import { AppearanceSettings } from './appearance-settings'
 import { BILLING_VIEWS, BillingSettings, type BillingSubView } from './billing'
 import { deriveBillingView, useBillingState, useSubscriptionState } from './billing/use-billing-state'
-import { ConfigSettings } from './config-settings'
-import { CloudBackupSettings } from './cloud-backup-settings'
 import { getCloudBackupCopy } from './cloud-backup-copy'
+import { CloudBackupSettings } from './cloud-backup-settings'
+import { ConfigSettings } from './config-settings'
 import { SECTIONS } from './constants'
 import { GatewaySettings } from './gateway-settings'
+import { GuardianSettings } from './guardian-settings'
 import { KeybindSettings } from './keybind-settings'
 import { movedSettingsTabRedirect } from './moved-tabs'
 import { NotificationsSettings } from './notifications-settings'
@@ -73,6 +74,7 @@ const SETTINGS_VIEWS: readonly SettingsViewId[] = [
   'providers',
   'cloud-backup',
   'gateway',
+  'guardian',
   // Legacy alias: the Connections page merged into Gateways. Kept in the enum
   // so saved `?tab=connections` deep links still resolve (redirected below).
   'connections',
@@ -374,6 +376,13 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
             onSelect: () => setActiveView('gateway')
           },
           {
+            active: activeView === 'guardian',
+            icon: ShieldLock,
+            id: 'guardian',
+            label: t.settings.nav.guardian,
+            onSelect: () => setActiveView('guardian')
+          },
+          {
             active: activeView === 'keybinds',
             icon: Keyboard,
             id: 'keybinds',
@@ -545,6 +554,8 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
     />
   ) : activeView === 'cloud-backup' ? (
     <CloudBackupSettings key={scopeProfile || 'default'} />
+  ) : activeView === 'guardian' ? (
+    <GuardianSettings />
   ) : activeView === 'billing' ? (
     <BillingSettings />
   ) : activeView === 'plugins' ? (

@@ -98,6 +98,34 @@ export function useComposerDraft({
   // Coarse edges only — these flip rarely (empty↔non-empty, the `?` help sigil,
   // steerable-vs-slash), so typing within a line costs no render.
   const hasText = useAuiState(s => s.composer.text.trim().length > 0)
+  // The contentEditable is authoritative while a frame-coalesced draft flush is
+  // pending. Keep only its empty/non-empty edge in React so Send never has to
+  // wait for the full plain-text serialization below.
+  const [hasLiveText, setHasLiveText] = useState(hasText)
+  const hasLiveTextRef = useRef(hasText)
+  const setLiveTextPresence = useCallback((text: string) => {
+    const next = text.trim().length > 0
+
+    if (next !== hasLiveTextRef.current) {
+      hasLiveTextRef.current = next
+      setHasLiveText(next)
+    }
+  }, [])
+  const syncLiveTextPresenceFromInput = useCallback(
+    (editor: HTMLElement, inputType: string, data: string | null) => {
+      const insert = inputType.startsWith('insert')
+      const shouldReadText =
+        inputType.startsWith('delete') ||
+        inputType.startsWith('history') ||
+        (!hasLiveTextRef.current && insert) ||
+        (hasLiveTextRef.current && insert && (data === null || data.trim().length === 0))
+
+      if (shouldReadText) {
+        setLiveTextPresence(editor.textContent ?? '')
+      }
+    },
+    [setLiveTextPresence]
+  )
   const isHelpHint = useAuiState(s => s.composer.text === '?')
 
   const isSteerableText = useAuiState(s => {
@@ -162,6 +190,7 @@ export function useComposerDraft({
   const paintDraft = useCallback(
     (next: string, focus = true, preserveFocusedCaret = false) => {
       draftRef.current = next
+      setLiveTextPresence(next)
       setComposerText(next)
 
       const editor = editorRef.current
@@ -200,7 +229,7 @@ export function useComposerDraft({
         requestMainFocus()
       }
     },
-    [requestMainFocus, setComposerText, target]
+    [requestMainFocus, setComposerText, setLiveTextPresence, target]
   )
 
   const appendExternalText = useCallback(
@@ -371,6 +400,7 @@ export function useComposerDraft({
   }
 
   const clearDraft = useCallback(() => {
+    setLiveTextPresence('')
     setComposerText('')
     draftRef.current = ''
 
@@ -381,7 +411,7 @@ export function useComposerDraft({
         placeCaretEnd(editorRef.current)
       }
     }
-  }, [setComposerText, target])
+  }, [setComposerText, setLiveTextPresence, target])
 
   // Read the editor's current plain text into draftRef + composer state. This
   // closes the "queued rAF flush hasn't run yet" window so scope-swap/pagehide
@@ -390,6 +420,8 @@ export function useComposerDraft({
     const editor = editorRef.current
 
     if (!editor) {
+      setLiveTextPresence(draftRef.current)
+
       return draftRef.current
     }
 
@@ -400,6 +432,7 @@ export function useComposerDraft({
     normalizeComposerEditorDom(editor)
 
     const text = sanitizeComposerInput(composerPlainText(editor))
+    setLiveTextPresence(text)
 
     if (text !== draftRef.current) {
       draftRef.current = text
@@ -407,7 +440,7 @@ export function useComposerDraft({
     }
 
     return text
-  }, [setComposerText])
+  }, [setComposerText, setLiveTextPresence])
 
   // Imperative draft sync — the spine of the "work only when work is to be
   // performed" model. Subscribing to the composer runtime directly (not
@@ -423,11 +456,15 @@ export function useComposerDraft({
     const sync = () => {
       const text = composerRuntime.getState().text
       draftRef.current = text
+      const editor = editorRef.current
+
+      if (!editor || document.activeElement !== editor) {
+        setLiveTextPresence(text)
+      }
+
       // Composer suggestion pills for THIS session's draft (debounced +
       // change-gated in the bus — this is just a timer reset).
       sampleComposerDraft(sessionIdRef.current ?? null, text)
-
-      const editor = editorRef.current
 
       if (editor && document.activeElement !== editor && composerPlainText(editor) !== text) {
         renderComposerContents(editor, text, { trailingCommitted: true })
@@ -462,7 +499,7 @@ export function useComposerDraft({
       unsubscribe()
       window.clearTimeout(draftPersistTimerRef.current)
     }
-  }, [composerRuntime, queueEditRef])
+  }, [composerRuntime, queueEditRef, setLiveTextPresence])
 
   const insertText = (text: string) => {
     const base = draftRef.current
@@ -638,6 +675,7 @@ export function useComposerDraft({
     editorRef,
     focusInput,
     hasText,
+    hasLiveText,
     insertInlineRefs,
     insertText,
     isHelpHint,
@@ -646,6 +684,8 @@ export function useComposerDraft({
     requestMainFocus,
     sessionIdRef,
     setComposerText,
+    setLiveTextPresence,
+    syncLiveTextPresenceFromInput,
     stashAt,
     syncDraftFromEditor
   }
