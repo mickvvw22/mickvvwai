@@ -312,11 +312,11 @@ export function deleteCustomEndpoint(id: string, profile?: null | string): Promi
   })
 }
 
-export function setProviderAccessPassword(password: string): Promise<{ ok: boolean }> {
+export function setProviderAccessPassword(oldPassword: string, password: string): Promise<{ ok: boolean }> {
   return hermesApi<{ ok: boolean }>({
     path: '/api/providers/access-password',
     method: 'POST',
-    body: { password }
+    body: { old_password: oldPassword, password }
   })
 }
 
