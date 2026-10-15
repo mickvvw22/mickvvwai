@@ -785,7 +785,9 @@ class GatewayModelCommandsMixin:
         if nxt == "await_custom_key":
             return await self._pa_save_custom(event, pending)
         if nxt == "await_delete":
-            return await self._pa_do_delete(event, pending.get("target"))
+            target = pending.get("target")
+            self._pa_set_pending(event.source, {"step": "await_delete_confirm", "target": target})
+            return t("gateway.addprovider.delete_confirm", target=target)
         return t("gateway.addprovider.no_pending")
 
     async def _handle_pkey_command(self, event: MessageEvent) -> str:
@@ -1290,3 +1292,12 @@ class GatewayModelCommandsMixin:
             return t("gateway.penable.write_failed")
         key = "gateway.penable.enabled" if enabled else "gateway.penable.disabled"
         return t(key, name=name)
+
+    async def _handle_pdelconfirm_command(self, event: MessageEvent) -> str:
+        """Confirm provider deletion."""
+        pending = self._pa_get_pending(event.source)
+        if not pending or pending.get("step") != "await_delete_confirm":
+            return t("gateway.addprovider.no_pending")
+        target = pending.get("target")
+        self._pa_clear_pending(event.source)
+        return await self._pa_do_delete(event, target)

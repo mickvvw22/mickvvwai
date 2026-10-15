@@ -80,6 +80,7 @@ gateway:
     badge_chat: "💬 对话接入"
     badge_desktop: "🖥 桌面端接入"
     delete_usage: "删除指定供应商配置：/addprovider del <供应商名称>"
+    delete_confirm: "确认删除供应商「{target}」吗？发送 /pdelconfirm 确认删除"
     delete_disabled: "删除功能未开启，请先在「设置 → 提供方 → AI模型供应商接入设置」中开启。"
     delete_password_prompt: "确认删除「{target}」吗？请输入接入密码：/ppass <密码>"
     deleted: "🗑 已删除「{target}」。"
