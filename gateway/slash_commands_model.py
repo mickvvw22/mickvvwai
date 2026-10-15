@@ -1222,10 +1222,10 @@ class GatewayModelCommandsMixin:
     async def _handle_ptest_command(self, event: MessageEvent) -> str:
         args = (event.get_command_args() or "").strip()
         if not args or "|" not in args:
-            return "C1"
+            return t("gateway.ptest.usage")
         parts = [p.strip() for p in args.split("|", 1)]
         if len(parts) < 2 or not parts[0] or not parts[1]:
-            return "C1"
+            return t("gateway.ptest.usage")
         base_url, api_key = parts[0], parts[1]
         try:
             from hermes_cli.web_routers.config_env import (
@@ -1236,17 +1236,17 @@ class GatewayModelCommandsMixin:
             )
             result = await validate_custom_endpoint(body)
         except Exception as exc:
-            return f"SF"
+            return t("gateway.ptest.failed", error=str(exc))
         _emsg = result.get("message", "")
         if not result.get("reachable"):
-            return f"NF"
+            return t("gateway.ptest.unreachable", message=_emsg)
         if not result.get("ok"):
-            return f"WF"
+            return t("gateway.ptest.invalid", message=_emsg)
         models = result.get("models") or []
-        msg = "PS"
+        msg = t("gateway.ptest.passed")
         if models:
-            msg += "ML"
-            msg += "JL"
+            msg += t("gateway.ptest.models_header", count=len(models))
+            msg += "\n".join(f"• {m}" for m in sorted(models)[:20])
             if len(models) > 20:
-                msg += "MORE"
+                msg += t("gateway.ptest.more", count=len(models)-20)
         return msg
