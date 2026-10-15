@@ -1246,26 +1246,294 @@ jobs:
 
   # ── Linux builders (DISABLED for now) ─────────────────────────────────────
   build-linux-x64:
-    name: bundled linux-x64 (disabled for now)
-    if: needs.validate.outputs.linux-x64 == 'true'
+    name: bundled linux-x64
+    if: needs.validate.outputs.linux-x64 == "true"
     needs: validate
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 60
     steps:
-      - name: Disabled
-        shell: bash
-        run: echo "::notice::linux bundled builds are disabled for now — re-enable in desktop-bundled-release.yml"
+        - name: Check out the exact source commit
+          uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v7.0.1
+          with:
+            ref: ${{ github.sha }}
+            fetch-depth: 1
+            persist-credentials: false
+
+        - name: Reclaim unused disk space on the hosted runner
+          shell: bash
+          run: |
+            set -euo pipefail
+            echo 'Disk space before cleanup:'
+            df -h / "$GITHUB_WORKSPACE"
+            for path in \
+              /usr/local/lib/android \
+              /usr/local/.ghcup \
+              /opt/hostedtoolcache/CodeQL \
+              /usr/share/dotnet \
+              /usr/local/share/powershell; do
+              if [ -d "$path" ]; then
+                echo "Removing unused hosted-runner SDK: $path"
+                sudo rm -rf -- "$path"
+              fi
+            done
+            sudo apt-get clean
+            echo 'Disk space after cleanup:'
+            df -h / "$GITHUB_WORKSPACE"
+            available_kib="$(df -Pk "$GITHUB_WORKSPACE" | awk 'NR == 2 {print $4}')"
+            printf 'available_kib=%s\n' "$available_kib"
+            if [ "$available_kib" -lt 8388608 ]; then
+              printf '::error::Only %.1f GiB free after cleanup; at least 8 GiB is required before bundled dependency preparation.\n' "$(awk -v kib="$available_kib" 'BEGIN {print kib / 1024 / 1024}')"
+              exit 1
+            fi
+
+        - name: Set up the locked toolchain and npm download cache
+          uses: ./.github/actions/setup-pm
+          with:
+            toolchain: all
+            cache-python: true
+            cache-node: true
+            node-cache-dependency-path: package-lock.json
+
+        - name: Resolve the pinned electron-builder version
+          id: electron-tools
+          shell: bash
+          run: |
+            set -euo pipefail
+            version="$(node -p 'require("./package-lock.json").packages["node_modules/electron-builder"].version')"
+            test -n "$version"
+            printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+
+        - name: Restore electron-builder downloads
+          uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+          with:
+            path: ${{ github.workspace }}/.cache/electron-builder
+            key: eb3-${{ runner.os }}-${{ runner.arch }}-builder-${{ steps.electron-tools.outputs.version }}
+            restore-keys: |
+              eb3-${{ runner.os }}-${{ runner.arch }}-builder-
+              eb3-${{ runner.os }}-${{ runner.arch }}-
+
+        - name: Restore reusable desktop dependency inputs
+          id: desktop-cache
+          uses: ./.github/actions/desktop-build-cache
+          with:
+            phase: restore
+            source: ${{ github.workspace }}
+            work: ${{ runner.temp }}/desktop-job
+            cache: ${{ github.workspace }}/.cache/desktop-inputs
+            producer: desktop
+
+        - name: Prepare the complete bundled desktop payload
+          id: prepare
+          shell: bash
+          env:
+            PYTHONUTF8: '1'
+          run: |
+            set -euo pipefail
+            python3 scripts/bundles/desktop.py --commit "$GITHUB_SHA" --variant bundled --prepare-only \
+              --work "$RUNNER_TEMP/desktop-job" --cache "$GITHUB_WORKSPACE/.cache/desktop-inputs"
+            python3 -m scripts.ci.desktop_commands "$RUNNER_TEMP/desktop-job/prepared.json"
+
+        - name: Save reusable desktop dependency inputs
+          if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+          uses: ./.github/actions/desktop-build-cache
+          with:
+            phase: save
+            source: ${{ github.workspace }}
+            work: ${{ runner.temp }}/desktop-job
+            cache: ${{ github.workspace }}/.cache/desktop-inputs
+            producer: desktop
+            key: ${{ steps.desktop-cache.outputs.cache-key }}
+
+        - name: Build the bundled Linux AppImage
+          id: build
+          shell: bash
+          env:
+            PYTHONUTF8: '1'
+          run: |
+            set -euo pipefail
+            python3 scripts/bundles/desktop.py --prepared "$RUNNER_TEMP/desktop-job/prepared.json" --variant bundled
+
+        - name: Save electron-builder downloads
+          if: ${{ success() }}
+          uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+          with:
+            path: ${{ github.workspace }}/.cache/electron-builder
+            key: eb3-${{ runner.os }}-${{ runner.arch }}-builder-${{ steps.electron-tools.outputs.version }}
+
+        - name: Validate and name the AppImage
+          id: artifact
+          shell: bash
+          run: |
+            set -euo pipefail
+            test "$(uname -m)" = "x86_64"
+            shopt -s nullglob
+            appimages=(apps/desktop/release/*.AppImage)
+            if [ "${#appimages[@]}" -ne 1 ]; then
+              printf 'Expected exactly one AppImage; found %s\n' "${#appimages[@]}" >&2
+              printf '%s\n' "${appimages[@]}" >&2
+              exit 1
+            fi
+            artifact="$RUNNER_TEMP/xinyuan-bundled-linux-x64-${GITHUB_SHA}.AppImage"
+            cp -- "${appimages[0]}" "$artifact"
+            chmod u+x "$artifact"
+            size="$(stat -c '%s' "$artifact")"
+            sha256="$(sha256sum "$artifact" | cut -d' ' -f1)"
+            {
+              printf 'artifact=%s\n' "$artifact" >> "$GITHUB_OUTPUT"
+              printf 'size=%s\n' "$size" >> "$GITHUB_OUTPUT"
+              printf 'sha256=%s\n' "$sha256" >> "$GITHUB_OUTPUT"
+              printf '\n### Bundled Linux AppImage\n\n'
+              printf -- '- Commit: `%s`\n- Architecture: `linux-x64`\n- Size: `%s` bytes\n- SHA-256: `%s`\n' "$GITHUB_SHA" "$size" "$sha256"
+            } >> "$GITHUB_STEP_SUMMARY"
+
+        - name: Upload the AppImage as a short-lived Actions artifact
+          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          with:
 
   build-linux-arm64:
-    name: bundled linux-arm64 (disabled for now)
-    if: needs.validate.outputs.linux-arm64 == 'true'
+    name: bundled linux-arm64
+    if: needs.validate.outputs.linux-arm64 == "true"
     needs: validate
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
     steps:
-      - name: Disabled
-        shell: bash
-        run: echo "::notice::linux bundled builds are disabled for now — re-enable in desktop-bundled-release.yml"
+        - name: Check out the exact source commit
+          uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v7.0.1
+          with:
+            ref: ${{ github.sha }}
+            fetch-depth: 1
+            persist-credentials: false
+
+        - name: Reclaim unused disk space on the hosted runner
+          shell: bash
+          run: |
+            set -euo pipefail
+            echo 'Disk space before cleanup:'
+            df -h / "$GITHUB_WORKSPACE"
+            for path in \
+              /usr/local/lib/android \
+              /usr/local/.ghcup \
+              /opt/hostedtoolcache/CodeQL \
+              /usr/share/dotnet \
+              /usr/local/share/powershell; do
+              if [ -d "$path" ]; then
+                echo "Removing unused hosted-runner SDK: $path"
+                sudo rm -rf -- "$path"
+              fi
+            done
+            sudo apt-get clean
+            echo 'Disk space after cleanup:'
+            df -h / "$GITHUB_WORKSPACE"
+            available_kib="$(df -Pk "$GITHUB_WORKSPACE" | awk 'NR == 2 {print $4}')"
+            printf 'available_kib=%s\n' "$available_kib"
+            if [ "$available_kib" -lt 8388608 ]; then
+              printf '::error::Only %.1f GiB free after cleanup; at least 8 GiB is required before bundled dependency preparation.\n' "$(awk -v kib="$available_kib" 'BEGIN {print kib / 1024 / 1024}')"
+              exit 1
+            fi
+
+        - name: Set up the locked toolchain and npm download cache
+          uses: ./.github/actions/setup-pm
+          with:
+            toolchain: all
+            cache-python: true
+            cache-node: true
+            node-cache-dependency-path: package-lock.json
+
+        - name: Resolve the pinned electron-builder version
+          id: electron-tools
+          shell: bash
+          run: |
+            set -euo pipefail
+            version="$(node -p 'require("./package-lock.json").packages["node_modules/electron-builder"].version')"
+            test -n "$version"
+            printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+
+        - name: Restore electron-builder downloads
+          uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+          with:
+            path: ${{ github.workspace }}/.cache/electron-builder
+            key: eb3-${{ runner.os }}-${{ runner.arch }}-builder-${{ steps.electron-tools.outputs.version }}
+            restore-keys: |
+              eb3-${{ runner.os }}-${{ runner.arch }}-builder-
+              eb3-${{ runner.os }}-${{ runner.arch }}-
+
+        - name: Restore reusable desktop dependency inputs
+          id: desktop-cache
+          uses: ./.github/actions/desktop-build-cache
+          with:
+            phase: restore
+            source: ${{ github.workspace }}
+            work: ${{ runner.temp }}/desktop-job
+            cache: ${{ github.workspace }}/.cache/desktop-inputs
+            producer: desktop
+
+        - name: Prepare the complete bundled desktop payload
+          id: prepare
+          shell: bash
+          env:
+            PYTHONUTF8: '1'
+          run: |
+            set -euo pipefail
+            python3 scripts/bundles/desktop.py --commit "$GITHUB_SHA" --variant bundled --prepare-only \
+              --work "$RUNNER_TEMP/desktop-job" --cache "$GITHUB_WORKSPACE/.cache/desktop-inputs"
+            python3 -m scripts.ci.desktop_commands "$RUNNER_TEMP/desktop-job/prepared.json"
+
+        - name: Save reusable desktop dependency inputs
+          if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+          uses: ./.github/actions/desktop-build-cache
+          with:
+            phase: save
+            source: ${{ github.workspace }}
+            work: ${{ runner.temp }}/desktop-job
+            cache: ${{ github.workspace }}/.cache/desktop-inputs
+            producer: desktop
+            key: ${{ steps.desktop-cache.outputs.cache-key }}
+
+        - name: Build the bundled Linux AppImage
+          id: build
+          shell: bash
+          env:
+            PYTHONUTF8: '1'
+          run: |
+            set -euo pipefail
+            python3 scripts/bundles/desktop.py --prepared "$RUNNER_TEMP/desktop-job/prepared.json" --variant bundled
+
+        - name: Save electron-builder downloads
+          if: ${{ success() }}
+          uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+          with:
+            path: ${{ github.workspace }}/.cache/electron-builder
+            key: eb3-${{ runner.os }}-${{ runner.arch }}-builder-${{ steps.electron-tools.outputs.version }}
+
+        - name: Validate and name the AppImage
+          id: artifact
+          shell: bash
+          run: |
+            set -euo pipefail
+            test "$(uname -m)" = "aarch64"
+            shopt -s nullglob
+            appimages=(apps/desktop/release/*.AppImage)
+            if [ "${#appimages[@]}" -ne 1 ]; then
+              printf 'Expected exactly one AppImage; found %s\n' "${#appimages[@]}" >&2
+              printf '%s\n' "${appimages[@]}" >&2
+              exit 1
+            fi
+            artifact="$RUNNER_TEMP/xinyuan-bundled-linux-arm64-${GITHUB_SHA}.AppImage"
+            cp -- "${appimages[0]}" "$artifact"
+            chmod u+x "$artifact"
+            size="$(stat -c '%s' "$artifact")"
+            sha256="$(sha256sum "$artifact" | cut -d' ' -f1)"
+            {
+              printf 'artifact=%s\n' "$artifact" >> "$GITHUB_OUTPUT"
+              printf 'size=%s\n' "$size" >> "$GITHUB_OUTPUT"
+              printf 'sha256=%s\n' "$sha256" >> "$GITHUB_OUTPUT"
+              printf '\n### Bundled Linux AppImage\n\n'
+              printf -- '- Commit: `%s`\n- Architecture: `linux-arm64`\n- Size: `%s` bytes\n- SHA-256: `%s`\n' "$GITHUB_SHA" "$size" "$sha256"
+            } >> "$GITHUB_STEP_SUMMARY"
+
+        - name: Upload the AppImage as a short-lived Actions artifact
+          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          with:
 
   stage-receipt-darwin-arm64:
     name: Stage the darwin-arm64 stable receipt
