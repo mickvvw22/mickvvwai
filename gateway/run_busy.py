@@ -827,6 +827,17 @@ class GatewayBusySessionMixin:
             )
             return True  # handled (silently dropped); do not fall through
         # A steered or queued follow-up never reaches _hm_admit_event, so the budget is charged here.
+        # 自然语言添加供应商意图识别
+        try:
+            _t = (event.text or "").strip()
+            if _t and not _t.startswith("/"):
+                _kw = ["添加供应商", "add provider"]
+                if any(k.lower() in _t.lower() for k in _kw):
+                    _ad = self._delivery_adapter_for(event.source)
+                    await self._send_busy_reply(event, _ad, "请用 /padd 格式发送")
+                    return True
+        except Exception:
+            pass
         if not self._admit_bot_message_for_source(event.source):
             return True
         event._bot_loop_admitted = True
