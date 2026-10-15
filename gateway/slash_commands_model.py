@@ -870,7 +870,7 @@ class GatewayModelCommandsMixin:
                     _d=json.load(_r).get("data",[])
                 _ids=[m.get("id") for m in _d if m.get("id")]
                 if _ids:
-                    _mt=chr(10)+chr(10)+"Models:"
+                    _mt=chr(10)+chr(10)+"可用模型："
                     for _m in sorted(_ids)[:20]:
                         _mt+=chr(10)+"- "+_m
         except Exception:
