@@ -105,6 +105,13 @@ gateway:
     unavailable: "会话存储不可用；本次未删除任何内容。"
     failed: "未能删除该对话，历史保持不变。"
     done: "对话历史已永久删除，并已准备好一个全新的空白对话。"
+  phealth:
+    header: "供应商健康检查："
+    read_failed: "读取配置失败。"
+    no_providers: "暂无供应商。"
+    disabled: "已禁用"
+    no_url: "未配置地址"
+    ok: "可用，{count} 个模型"
   restartapp:
     dm_only: "出于安全考虑，请仅在私聊中重启 Mickvvw。"
     admin_only: "只有已配置的网关管理员可以重启关联的 Mickvvw 桌面应用。"

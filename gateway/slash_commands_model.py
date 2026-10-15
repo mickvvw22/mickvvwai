@@ -1301,3 +1301,45 @@ class GatewayModelCommandsMixin:
         target = pending.get("target")
         self._pa_clear_pending(event.source)
         return await self._pa_do_delete(event, target)
+
+    async def _handle_phealth_command(self, event: MessageEvent) -> str:
+        """Check health of all providers."""
+        import hermes_yaml as yaml
+        import urllib.request
+        import json
+        cfg_path = "/root/.hermes/config.yaml"
+        try:
+            cfg = yaml.safe_load(open(cfg_path)) or {}
+        except Exception:
+            return t("gateway.phealth.read_failed")
+        providers = cfg.get("providers") or {}
+        if not providers:
+            return t("gateway.phealth.no_providers")
+        lines = [t("gateway.phealth.header")]
+        for pid, entry in providers.items():
+            if not isinstance(entry, dict):
+                continue
+            name = entry.get("name") or pid
+            if not entry.get("enabled", True):
+                lines.append(f"⏸️ {name}：{t('gateway.phealth.disabled')}")
+                continue
+            base_url = (entry.get("base_url") or "").rstrip("/")
+            api_key = entry.get("api_key") or ""
+            if not base_url:
+                lines.append(f"❌ {name}：{t('gateway.phealth.no_url')}")
+                continue
+            try:
+                req = urllib.request.Request(
+                    f"{base_url}/v1/models",
+                    headers={"Authorization": f"Bearer {api_key}"} if api_key else {},
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    if resp.status == 200:
+                        data = json.loads(resp.read().decode())
+                        count = len(data.get("data", []))
+                        lines.append(f"✅ {name}：{t('gateway.phealth.ok', count=count)}")
+                    else:
+                        lines.append(f"❌ {name}：HTTP {resp.status}")
+            except Exception as e:
+                lines.append(f"❌ {name}：{str(e)[:50]}")
+        return "\n".join(lines)
