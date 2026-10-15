@@ -43,6 +43,7 @@ export function ProviderAccessSettings(): ReactElement {
   const [saving, setSaving] = useState(false)
   const [section, setSection] = useState<ReturnType<typeof readSection>>(() => readSection(null))
   const [endpoints, setEndpoints] = useState<CustomEndpoint[]>([])
+  const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [changingPassword, setChangingPassword] = useState(false)
@@ -82,6 +83,10 @@ export function ProviderAccessSettings(): ReactElement {
   )
 
   const handleChangePassword = useCallback(async () => {
+    if (!oldPassword) {
+      notifyError(new Error(copy.oldPasswordEmpty), copy.oldPasswordEmpty)
+      return
+    }
     if (!newPassword) {
       notifyError(new Error(copy.passwordEmpty), copy.passwordEmpty)
       return
@@ -92,9 +97,11 @@ export function ProviderAccessSettings(): ReactElement {
     }
     setChangingPassword(true)
     try {
-      // The password itself is hashed server-side; we only ever send the
+      // The key itself is hashed server-side; we only ever send the
       // plaintext over the local loopback API, never store it.
-      await setProviderAccessPassword(newPassword)
+      // The server verifies the old key before accepting the new one.
+      await setProviderAccessPassword(oldPassword, newPassword)
+      setOldPassword('')
       setNewPassword('')
       setConfirmPassword('')
       notify({ kind: 'success', message: copy.passwordChanged })
@@ -103,7 +110,7 @@ export function ProviderAccessSettings(): ReactElement {
     } finally {
       setChangingPassword(false)
     }
-  }, [newPassword, confirmPassword, copy])
+  }, [oldPassword, newPassword, confirmPassword, copy])
 
   if (loading) {
     return <SettingsSkeleton search sections={[{ rows: 4 }]} />
@@ -139,6 +146,13 @@ export function ProviderAccessSettings(): ReactElement {
         <div className="grid gap-2">
           <Input
             type="password"
+            autoComplete="current-password"
+            placeholder={copy.oldPasswordPlaceholder}
+            value={oldPassword}
+            onChange={e => setOldPassword(e.target.value)}
+          />
+          <Input
+            type="password"
             autoComplete="new-password"
             placeholder={copy.newPasswordPlaceholder}
             value={newPassword}
@@ -152,7 +166,7 @@ export function ProviderAccessSettings(): ReactElement {
             onChange={e => setConfirmPassword(e.target.value)}
           />
           <div>
-            <Button disabled={changingPassword || !newPassword} onClick={() => void handleChangePassword()}>
+            <Button disabled={changingPassword || !oldPassword || !newPassword} onClick={() => void handleChangePassword()}>
               {changingPassword ? copy.changing : copy.changePassword}
             </Button>
           </div>
