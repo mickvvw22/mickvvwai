@@ -1177,35 +1177,35 @@ class GatewayModelCommandsMixin:
         import yaml
         a=(event.get_command_args() or "").strip()
         if not a:
-            return "Usage: /addadmin <id>"
+            return "用法：/addadmin <用户ID>"
         p="/root/.hermes/config.yaml"
         c=yaml.safe_load(open(p)) or {}
         t=c.get("platforms",{}).get("telegram",{})
         lst=[str(x) for x in (t.get("allow_admin_from") or [])]
         if a in lst:
-            return "Already admin: "+a
+            return "该用户已是管理员：" + a
         lst.append(a)
         c["platforms"]["telegram"]["allow_admin_from"]=lst
         yaml.safe_dump(c,open(p,"w"),allow_unicode=True)
-        return "Added admin: "+a
+        return "已添加管理员：" + a
 
     async def _handle_removeadmin_command(self, event: MessageEvent) -> str:
         import yaml
         a=(event.get_command_args() or "").strip()
         if not a:
-            return "Usage: /removeadmin <id>"
+            return "用法：/removeadmin <用户ID>"
         p="/root/.hermes/config.yaml"
         c=yaml.safe_load(open(p)) or {}
         t=c.get("platforms",{}).get("telegram",{})
         lst=[str(x) for x in (t.get("allow_admin_from") or [])]
         if a not in lst:
-            return "Not admin: "+a
+            return "该用户不是管理员：" + a
         if len(lst)<=1:
-            return "Cannot remove last admin"
+            return "不能删除最后一个管理员"
         lst.remove(a)
         c["platforms"]["telegram"]["allow_admin_from"]=lst
         yaml.safe_dump(c,open(p,"w"),allow_unicode=True)
-        return "Removed admin: "+a
+        return "已删除管理员：" + a
 
     async def _handle_listadmin_command(self, event: MessageEvent) -> str:
         import yaml
@@ -1213,8 +1213,8 @@ class GatewayModelCommandsMixin:
         c=yaml.safe_load(open(p)) or {}
         lst=c.get("platforms",{}).get("telegram",{}).get("allow_admin_from") or []
         if not lst:
-            return "No admins"
-        r="Admins:"
+            return "暂无管理员"
+        r="管理员列表："
         for x in lst:
             r+=chr(10)+"- "+str(x)
         return r
