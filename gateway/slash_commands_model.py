@@ -1371,3 +1371,64 @@ class GatewayModelCommandsMixin:
         except Exception:
             return t("gateway.pfailover.save_failed")
         return t("gateway.pfailover.done", status=t("gateway.pfailover.on") if new_val else t("gateway.pfailover.off"))
+
+    async def _handle_pedit_command(self, event: MessageEvent) -> str:
+        """Edit provider field (key/url/model/name)."""
+        import hermes_yaml as yaml
+        cfg_path = "/root/.hermes/config.yaml"
+        try:
+            cfg = yaml.safe_load(open(cfg_path)) or {}
+        except Exception:
+            return t("gateway.pedit.read_failed")
+        parts = event.text.split(None, 3) if hasattr(event, "text") else []
+        if len(parts) < 4:
+            return t("gateway.pedit.usage")
+        _, pname, field, value = parts
+        providers = cfg.get("providers") or {}
+        target_pid = None
+        for pid, entry in providers.items():
+            if not isinstance(entry, dict):
+                continue
+            if pid == pname or (entry.get("name") or "") == pname:
+                target_pid = pid
+                break
+        if not target_pid:
+            return t("gateway.pedit.not_found", name=pname)
+        entry = providers[target_pid]
+        field = field.lower()
+        if field in ("key", "apikey", "api_key", "\u5bc6\u94a5"):
+            key_env = entry.get("key_env")
+            if key_env:
+                env_path = "/root/.hermes/.env"
+                try:
+                    lines = open(env_path).read().split("\n")
+                except Exception:
+                    lines = []
+                found = False
+                for i, l in enumerate(lines):
+                    if l.startswith(key_env + "="):
+                        lines[i] = key_env + "=" + value
+                        found = True
+                        break
+                if not found:
+                    lines.append(key_env + "=" + value)
+                open(env_path, "w").write("\n".join(lines))
+            else:
+                entry["api_key"] = value
+            saved = t("gateway.pedit.saved_key")
+        elif field in ("url", "base_url", "baseurl", "\u5730\u5740"):
+            entry["base_url"] = value.rstrip("/")
+            saved = t("gateway.pedit.saved_url")
+        elif field in ("model", "\u6a21\u578b"):
+            entry["model"] = value
+            saved = t("gateway.pedit.saved_model")
+        elif field in ("name", "\u540d\u79f0"):
+            entry["name"] = value
+            saved = t("gateway.pedit.saved_name")
+        else:
+            return t("gateway.pedit.usage")
+        try:
+            yaml.safe_dump(cfg, open(cfg_path, "w"))
+        except Exception:
+            return t("gateway.pedit.save_failed")
+        return t("gateway.pedit.done", name=entry.get("name") or target_pid, field=saved)
