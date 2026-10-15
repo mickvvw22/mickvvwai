@@ -1315,6 +1315,18 @@ class GatewayInboundMixin(GatewayPluginInjectionMixin):
                     return "请按格式发送:"+chr(10)+"/padd 名称|base_url|key|模型"
         except Exception:
             pass
+        # 无供应商时主动引导接入
+        try:
+            _t2=(event.text or "").strip()
+            if _t2 and not _t2.startswith("/") and not is_internal:
+                from hermes_cli.config import load_config as _load_cfg
+                _cfg = _load_cfg() or {}
+                _providers = _cfg.get("providers") or {}
+                _has_provider = any(isinstance(v, dict) for v in _providers.values())
+                if not _has_provider:
+                    return "尚未接入任何 AI 供应商，先添加一个才能聊天："+chr(10)+"/padd 名称|base_url|key|模型"+chr(10)+"例如：/padd 我的供应商|https://api.example.com|sk-xxx|gpt-4"
+        except Exception:
+            pass
         _quick_key = self._session_key_for_source(source)
         _reply = await self._hm_pending_reply_intercepts(event, source, _quick_key)
         if _reply is not None:
