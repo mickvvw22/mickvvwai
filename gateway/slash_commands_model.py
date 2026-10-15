@@ -887,7 +887,8 @@ class GatewayModelCommandsMixin:
         lines = [t("gateway.addprovider.list_header")]
         for row in pa.list_providers_with_sources():
             badge = f" {badges[row['source']]}" if row.get("source") in badges else ""
-            lines.append(f"• {row['name']}{badge}")
+            status = "✅" if row.get("enabled", True) else "❌"
+        lines.append(f"• {row['name']}{badge} {status}")
         lines.append("")
         lines.append(t("gateway.addprovider.list_hint"))
         return "\n".join(lines)
@@ -1250,3 +1251,42 @@ class GatewayModelCommandsMixin:
             if len(models) > 20:
                 msg += t("gateway.ptest.more", count=len(models)-20)
         return msg
+
+    async def _handle_penable_command(self, event: MessageEvent) -> str:
+        """Enable a provider."""
+        args = (event.get_command_args() or "").strip()
+        if not args:
+            return t("gateway.penable.usage")
+        return await self._set_provider_enabled(args, True)
+
+    async def _handle_pdisable_command(self, event: MessageEvent) -> str:
+        """Disable a provider."""
+        args = (event.get_command_args() or "").strip()
+        if not args:
+            return t("gateway.pdisable.usage")
+        return await self._set_provider_enabled(args, False)
+
+    async def _set_provider_enabled(self, name: str, enabled: bool) -> str:
+        """Set provider enabled flag in config.yaml."""
+        import hermes_yaml as yaml
+        cfg_path = "/root/.hermes/config.yaml"
+        try:
+            cfg = yaml.safe_load(open(cfg_path)) or {}
+        except Exception:
+            return t("gateway.penable.read_failed")
+        providers = cfg.get("providers") or {}
+        # find by name or id
+        target_key = None
+        for k, v in providers.items():
+            if k == name or (isinstance(v, dict) and v.get("name") == name):
+                target_key = k
+                break
+        if target_key is None:
+            return t("gateway.penable.not_found", name=name)
+        providers[target_key]["enabled"] = enabled
+        try:
+            yaml.safe_dump(cfg, open(cfg_path, "w"), allow_unicode=True)
+        except Exception:
+            return t("gateway.penable.write_failed")
+        key = "gateway.penable.enabled" if enabled else "gateway.penable.disabled"
+        return t(key, name=name)

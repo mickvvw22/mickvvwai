@@ -921,7 +921,7 @@ class GatewayBusySessionMixin:
     _PLAIN_COMMANDS = (
         "status", "context", "restart", "restartapp", "approve", "deny", "pause", "agents", "bg", "btw",
         "kanban", "subgoal", "heartbeat", "busy", "yolo", "verbose", "footer", "help",
-        "commands", "profile", "login", "update", "version", "addmodel", "addprovider", "padd", "ppass", "pkey", "addadmin","removeadmin","listadmin","ptest",
+        "commands", "profile", "login", "update", "version", "addmodel", "addprovider", "padd", "ppass", "pkey", "addadmin","removeadmin","listadmin","ptest", "penable", "pdisable",
     )
     # Dispatched only on the idle path (busy dispatch has its own allowlist).
     _IDLE_COMMANDS = (

@@ -401,5 +401,5 @@ def list_providers_with_sources() -> list[dict[str, Any]]:
         source = entry.get("added_via") or get_source(endpoint_id)
         rows.append({"id": endpoint_id, "name": entry.get("name") or endpoint_id,
                      "kind": "custom",
-                     "source": source if source in KNOWN_SOURCES else None})
+                     "source": source if source in KNOWN_SOURCES else None, "enabled": entry.get("enabled", True)})
     return rows
