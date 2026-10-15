@@ -1247,7 +1247,7 @@ jobs:
   # ── Linux builders (DISABLED for now) ─────────────────────────────────────
   build-linux-x64:
     name: bundled linux-x64
-    if: needs.validate.outputs.linux-x64 == "true"
+    if: needs.validate.outputs.linux-x64 == 'true'
     needs: validate
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -1391,7 +1391,7 @@ jobs:
 
   build-linux-arm64:
     name: bundled linux-arm64
-    if: needs.validate.outputs.linux-arm64 == "true"
+    if: needs.validate.outputs.linux-arm64 == 'true'
     needs: validate
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
