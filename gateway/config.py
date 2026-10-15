@@ -414,7 +414,8 @@ class PlatformConfig:
     home_channel: Optional[HomeChannel] = None
     reply_to_mode: str = "first"  # "off" never threads, "first" only the first chunk, "all" every chunk
     gateway_restart_notification: bool = True  # "♻️ Gateway online/restarted" pings; noise on end-user platforms
-    typing_indicator: bool = True  # drives _keep_typing; False where unwanted (Slack setStatus blocks compose)
+    typing_indicator: bool = True
+    typing_timeout: float = 180.0
     # Working-state text for text-rendering indicators (Slack status, Google Chat marker); None = platform default.
     typing_status_text: Optional[str] = None
     channel_overrides: dict[str, ChannelOverride] = field(default_factory=dict)
@@ -425,6 +426,7 @@ class PlatformConfig:
             "enabled": self.enabled, "extra": self.extra, "reply_to_mode": self.reply_to_mode,
             "gateway_restart_notification": self.gateway_restart_notification,
             "typing_indicator": self.typing_indicator,
+            "typing_timeout": self.typing_timeout,
             **({"typing_status_text": self.typing_status_text} if self.typing_status_text is not None else {}),
             **{k: v for k in ("token", "api_key") if (v := getattr(self, k))},
         }
@@ -438,7 +440,7 @@ class PlatformConfig:
     # config and belongs in ``extra`` (see from_dict).
     _TYPED_KEYS = frozenset({
         "enabled", "token", "api_key", "home_channel", "reply_to_mode", "channel_overrides", "extra",
-        "gateway_restart_notification", "typing_indicator", "typing_status_text",
+        "gateway_restart_notification", "typing_indicator", "typing_status_text", "typing_timeout",
     })
 
     @classmethod
@@ -470,6 +472,7 @@ class PlatformConfig:
             reply_to_mode=data.get("reply_to_mode", "first"),
             gateway_restart_notification=_coerce_bool(toplevel_or_extra("gateway_restart_notification"), True),
             typing_indicator=_coerce_bool(toplevel_or_extra("typing_indicator"), True),
+            typing_timeout=_coerce_float(toplevel_or_extra("typing_timeout"), 180.0),
             typing_status_text=toplevel_or_extra("typing_status_text"),  # string passthrough, no coercion
             channel_overrides=channel_overrides,
             extra=extra,
