@@ -115,8 +115,18 @@ def save_settings(*, enabled: Optional[bool] = None, allow_delete: Optional[bool
     return get_settings()
 
 
-def set_password(new_password: str) -> None:
-    """Store a new access password (SHA-256, never plaintext)."""
+def set_password(old_password: str, new_password: str) -> None:
+    """Change the access password (SHA-256, never plaintext).
+
+    The old password must verify first; raises ValueError when it does not
+    match (or when the new password is empty). A wrong old password counts
+    toward the 5-attempt lockout, same as verify_password().
+    """
+    ok, reason = verify_password(old_password or "")
+    if not ok:
+        if reason.startswith("locked:"):
+            raise ValueError("password locked, try again later")
+        raise ValueError("old password is incorrect")
     if not (new_password or "").strip():
         raise ValueError("password must not be empty")
     digest = hashlib.sha256(new_password.strip().encode("utf-8")).hexdigest()
