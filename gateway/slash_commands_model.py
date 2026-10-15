@@ -1174,7 +1174,7 @@ class GatewayModelCommandsMixin:
             return None  # Picker sent — adapter handles the response
         return t("gateway.fast.status", mode=status)
     async def _handle_addadmin_command(self, event: MessageEvent) -> str:
-        import yaml
+        import hermes_yaml as yaml
         a=(event.get_command_args() or "").strip()
         if not a:
             return "用法：/addadmin <用户ID>"
@@ -1190,7 +1190,7 @@ class GatewayModelCommandsMixin:
         return "已添加管理员：" + a
 
     async def _handle_removeadmin_command(self, event: MessageEvent) -> str:
-        import yaml
+        import hermes_yaml as yaml
         a=(event.get_command_args() or "").strip()
         if not a:
             return "用法：/removeadmin <用户ID>"
@@ -1208,7 +1208,7 @@ class GatewayModelCommandsMixin:
         return "已删除管理员：" + a
 
     async def _handle_listadmin_command(self, event: MessageEvent) -> str:
-        import yaml
+        import hermes_yaml as yaml
         p="/root/.hermes/config.yaml"
         c=yaml.safe_load(open(p)) or {}
         lst=c.get("platforms",{}).get("telegram",{}).get("allow_admin_from") or []
