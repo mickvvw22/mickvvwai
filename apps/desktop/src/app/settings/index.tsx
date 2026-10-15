@@ -342,6 +342,13 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
                 label: t.settings.nav.providerCustomEndpoints,
                 onSelect: () => openSubView('providers', 'pview', 'custom-endpoints', 'accounts')
               },
+              {
+                active: activeView === 'providers' && providerView === 'provider-access',
+                icon: KeyRound,
+                id: 'pview:provider-access',
+                label: t.settings.nav.providerAccess,
+                onSelect: () => openSubView('providers', 'pview', 'provider-access', 'accounts')
+              },
               ...(localModelsEnabled
                 ? [
                     {
