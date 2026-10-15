@@ -622,6 +622,291 @@ class GatewayModelCommandsMixin:
         """Direct users to the credential-safe provider setup surface."""
         return t("gateway.addmodel.instructions")
 
+
+    # ------------------------------------------------------- /addprovider
+    # Add a model provider from chat: password-gated, DM-only, admin-only.
+    # Secrets travel as dedicated sub-commands (/pkey, /ppass, /padd) so they
+    # never enter the agent transcript; each secret message is best-effort
+    # deleted right after it is read and never echoed back. All persistence
+    # goes through hermes_cli.provider_access, shared with the agent tool.
+
+    _PROVIDER_ACCESS_CUSTOM_CHOICE = "__custom__"
+
+    def _pa_pending_store(self) -> dict:
+        store = getattr(self, "_provider_access_pending", None)
+        if not isinstance(store, dict):
+            store = {}
+            self._provider_access_pending = store
+        return store
+
+    def _pa_pending_key(self, source) -> tuple:
+        return (str(getattr(source, "platform", "")),
+                str(getattr(source, "chat_id", "")),
+                str(getattr(source, "user_id", "")))
+
+    def _pa_get_pending(self, source) -> Optional[dict]:
+        import time
+
+        store = self._pa_pending_store()
+        entry = store.get(self._pa_pending_key(source))
+        if not isinstance(entry, dict):
+            return None
+        if entry.get("expires", 0) < time.time():
+            store.pop(self._pa_pending_key(source), None)
+            return None
+        return entry
+
+    def _pa_set_pending(self, source, state: dict) -> None:
+        import time
+
+        from hermes_cli.provider_access import PENDING_TTL_SECONDS
+
+        state = dict(state)
+        state["expires"] = time.time() + PENDING_TTL_SECONDS
+        self._pa_pending_store()[self._pa_pending_key(source)] = state
+
+    def _pa_clear_pending(self, source) -> None:
+        self._pa_pending_store().pop(self._pa_pending_key(source), None)
+
+    def _pa_guard(self, event: MessageEvent) -> Optional[str]:
+        """DM-only + admin + master-switch gate. Returns an error text or None."""
+        source = event.source
+        if str(getattr(source, "chat_type", "")).strip().lower() not in {"dm", "direct", "private"}:
+            return t("gateway.addprovider.dm_only")
+        from gateway.slash_access import policy_for_runner_source
+
+        policy = policy_for_runner_source(self, source)
+        if not policy.enabled or not policy.is_admin(getattr(source, "user_id", None)):
+            return t("gateway.addprovider.admin_only")
+        from hermes_cli import provider_access as pa
+
+        allowed, _reason = pa.check_gate()
+        if not allowed:
+            return t("gateway.addprovider.disabled")
+        return None
+
+    async def _pa_try_delete_message(self, event: MessageEvent) -> None:
+        """Best-effort delete of the user's secret message.
+
+        Telegram bots can delete user messages in groups (as admin) but NOT in
+        private chats, so the user is always also told to delete it themselves.
+        """
+        try:
+            adapter = self._delivery_adapter_for(event.source)
+            delete = getattr(adapter, "delete_message", None)
+            message_id = getattr(event, "message_id", None)
+            if delete is not None and message_id:
+                await delete(chat_id=event.source.chat_id, message_id=str(message_id))
+        except Exception:
+            logger.debug("addprovider: message delete failed", exc_info=True)
+
+    def _pa_provider_choices(self) -> list:
+        from hermes_cli import provider_access as pa
+
+        choices = [{"value": row["id"], "label": row["name"], "is_current": False}
+                   for row in pa.list_providers_with_sources() if row["kind"] == "builtin"]
+        choices.append({"value": self._PROVIDER_ACCESS_CUSTOM_CHOICE,
+                        "label": t("gateway.addprovider.choice_custom"), "is_current": False})
+        return choices
+
+    async def _handle_addprovider_command(self, event: MessageEvent) -> Optional[str]:
+        """Handle /addprovider — add / list / delete model providers from chat."""
+        denied = self._pa_guard(event)
+        if denied:
+            return denied
+        args = (event.get_command_args() or "").strip().split()
+        if args and args[0].lower() == "list":
+            return await self._pa_list_providers(event)
+        if args and args[0].lower() in {"del", "delete", "remove"}:
+            return await self._pa_start_delete(event, " ".join(args[1:]).strip())
+        if args:
+            return await self._pa_begin_for_provider(event, " ".join(args))
+
+        async def _on_choice(_chat_id: str, value: str) -> str:
+            return await self._pa_begin_for_provider(event, value)
+
+        session_key = self._session_key_for_source(event.source)
+        sent = await self._try_send_choice_picker(
+            event, session_key,
+            title=t("gateway.addprovider.picker_title"),
+            choices=self._pa_provider_choices(),
+            on_choice_selected=_on_choice,
+        )
+        if sent:
+            return None
+        # Text fallback for platforms without a choice picker.
+        lines = [t("gateway.addprovider.pick_text_header")]
+        for choice in self._pa_provider_choices():
+            lines.append(f"  `/addprovider {choice['value']}` — {choice['label']}")
+        return "\n".join(lines)
+
+    async def _pa_begin_for_provider(self, event: MessageEvent, value: str) -> str:
+        denied = self._pa_guard(event)
+        if denied:
+            return denied
+        value = (value or "").strip()
+        if value == self._PROVIDER_ACCESS_CUSTOM_CHOICE or value.lower() == "custom":
+            self._pa_set_pending(event.source, {"step": "await_custom"})
+            return t("gateway.addprovider.custom_instructions")
+        from providers import get_provider_profile
+
+        profile = get_provider_profile(value)
+        if profile is None:
+            return t("gateway.addprovider.unknown_provider", name=value)
+        self._pa_set_pending(event.source, {"step": "await_password", "provider": profile.name,
+                                            "next": "await_key"})
+        label = profile.display_name or profile.name
+        return t("gateway.addprovider.password_prompt", provider=label)
+
+    async def _handle_ppass_command(self, event: MessageEvent) -> str:
+        """Handle /ppass — verify the access password for a pending operation."""
+        denied = self._pa_guard(event)
+        if denied:
+            return denied
+        pending = self._pa_get_pending(event.source)
+        if not pending or pending.get("step") != "await_password":
+            return t("gateway.addprovider.no_pending")
+        password = (event.get_command_args() or "").strip()
+        await self._pa_try_delete_message(event)
+        if not password:
+            return t("gateway.addprovider.password_empty")
+        from hermes_cli import provider_access as pa
+
+        ok, reason = pa.verify_password(password)
+        if not ok:
+            if reason.startswith("locked:"):
+                return t("gateway.addprovider.password_locked", seconds=reason.split(":", 1)[1])
+            return t("gateway.addprovider.password_wrong")
+        self._pa_clear_pending(event.source)
+        nxt = pending.get("next")
+        if nxt == "await_key":
+            self._pa_set_pending(event.source, {"step": "await_key", "provider": pending.get("provider")})
+            return t("gateway.addprovider.key_prompt")
+        if nxt == "await_custom_key":
+            return await self._pa_save_custom(event, pending)
+        if nxt == "await_delete":
+            return await self._pa_do_delete(event, pending.get("target"))
+        return t("gateway.addprovider.no_pending")
+
+    async def _handle_pkey_command(self, event: MessageEvent) -> str:
+        """Handle /pkey — receive the API key for a pending built-in provider."""
+        denied = self._pa_guard(event)
+        if denied:
+            return denied
+        pending = self._pa_get_pending(event.source)
+        if not pending or pending.get("step") != "await_key":
+            return t("gateway.addprovider.no_pending")
+        api_key = (event.get_command_args() or "").strip()
+        await self._pa_try_delete_message(event)
+        if not api_key:
+            return t("gateway.addprovider.key_empty")
+        provider = pending.get("provider")
+        self._pa_clear_pending(event.source)
+        from hermes_cli import provider_access as pa
+
+        result = await asyncio.to_thread(pa.add_builtin_key, provider, api_key, pa.SOURCE_BOT)
+        if not result.get("ok"):
+            return t("gateway.addprovider.save_failed_detail", error=result.get("error") or "")
+        label = result.get("display_name") or provider
+        if not result.get("verified"):
+            return t("gateway.addprovider.saved_unverified", provider=label)
+        return t("gateway.addprovider.saved", provider=label)
+
+    async def _handle_padd_command(self, event: MessageEvent) -> str:
+        """Handle /padd — one-shot custom provider: /padd <name> | <base_url> | <key> | <model>."""
+        denied = self._pa_guard(event)
+        if denied:
+            return denied
+        pending = self._pa_get_pending(event.source)
+        if not pending or pending.get("step") != "await_custom":
+            return t("gateway.addprovider.no_pending")
+        raw = (event.get_command_args() or "").strip()
+        await self._pa_try_delete_message(event)
+        parts = [p.strip() for p in raw.split("|")]
+        if len(parts) < 3 or not parts[0] or not parts[1] or not parts[2]:
+            return t("gateway.addprovider.custom_format")
+        name, base_url, api_key = parts[0], parts[1], parts[2]
+        model = parts[3] if len(parts) > 3 else ""
+        self._pa_clear_pending(event.source)
+        self._pa_set_pending(event.source, {"step": "await_password", "next": "await_custom_key",
+                                            "name": name, "base_url": base_url, "model": model,
+                                            "api_key": api_key})
+        return t("gateway.addprovider.password_prompt", provider=name)
+
+    async def _pa_save_custom(self, event: MessageEvent, pending: dict) -> str:
+        """Validate + persist a custom endpoint, then badge it."""
+        from hermes_cli import provider_access as pa
+        from hermes_cli.web_models import CustomEndpointUpdate
+        from hermes_cli.web_routers.config_env import validate_custom_endpoint
+
+        body = CustomEndpointUpdate(name=pending.get("name") or "", base_url=pending.get("base_url") or "",
+                                    model=pending.get("model") or "", api_key=pending.get("api_key") or "")
+        try:
+            result = await validate_custom_endpoint(body)
+        except Exception as exc:
+            logger.warning("addprovider: custom validation error: %s", exc)
+            result = {"ok": False, "reachable": False, "message": str(exc)}
+        if not result.get("ok") and result.get("reachable"):
+            return t("gateway.addprovider.endpoint_rejected", message=result.get("message") or "")
+        try:
+            saved = await asyncio.to_thread(
+                pa.add_custom_endpoint, pending.get("name"), pending.get("base_url"),
+                pending.get("api_key"), pending.get("model"), pa.SOURCE_BOT)
+        except Exception as exc:
+            logger.warning("addprovider: failed to save custom endpoint: %s", exc)
+            return t("gateway.addprovider.save_failed")
+        if not saved.get("ok"):
+            return t("gateway.addprovider.save_failed_detail", error=saved.get("error") or "")
+        if not result.get("ok"):
+            return t("gateway.addprovider.saved_unverified", provider=pending.get("name"))
+        return t("gateway.addprovider.saved", provider=pending.get("name"))
+
+    async def _pa_list_providers(self, event: MessageEvent) -> str:
+        """List providers with their source badges."""
+        from hermes_cli import provider_access as pa
+
+        badges = {pa.SOURCE_BOT: t("gateway.addprovider.badge_bot"),
+                  pa.SOURCE_CHAT: t("gateway.addprovider.badge_chat"),
+                  pa.SOURCE_DESKTOP: t("gateway.addprovider.badge_desktop")}
+        lines = [t("gateway.addprovider.list_header")]
+        for row in pa.list_providers_with_sources():
+            badge = f" {badges[row['source']]}" if row.get("source") in badges else ""
+            lines.append(f"• {row['name']}{badge}")
+        lines.append("")
+        lines.append(t("gateway.addprovider.list_hint"))
+        return "\n".join(lines)
+
+    async def _pa_start_delete(self, event: MessageEvent, target: str) -> str:
+        """Begin the delete flow — requires allow_delete + password."""
+        from hermes_cli import provider_access as pa
+
+        if not target:
+            return t("gateway.addprovider.delete_usage")
+        if not pa.is_delete_allowed():
+            return t("gateway.addprovider.delete_disabled")
+        self._pa_set_pending(event.source, {"step": "await_password", "next": "await_delete",
+                                            "target": target})
+        return t("gateway.addprovider.delete_password_prompt", target=target)
+
+    async def _pa_do_delete(self, event: MessageEvent, target: str) -> str:
+        """Delete a custom endpoint or a built-in provider key (allow_delete already checked)."""
+        from hermes_cli import provider_access as pa
+
+        try:
+            result = await asyncio.to_thread(pa.delete_provider_entry, target)
+        except Exception as exc:
+            logger.warning("addprovider: delete failed for %s: %s", target, exc)
+            return t("gateway.addprovider.save_failed")
+        if not result.get("ok"):
+            error = result.get("error") or ""
+            if error == "unknown_provider":
+                return t("gateway.addprovider.unknown_provider", name=target)
+            if error == "not_configured":
+                return t("gateway.addprovider.not_configured", target=target)
+            return t("gateway.addprovider.save_failed_detail", error=error)
+        return t("gateway.addprovider.deleted", target=target)
+
+
     async def _handle_personality_command(self, event: MessageEvent) -> str:
         """Handle /personality — list or set a personality (hermes_cli.personality owns the state)."""
         from gateway.run import _load_gateway_config
