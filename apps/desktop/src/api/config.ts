@@ -312,6 +312,14 @@ export function deleteCustomEndpoint(id: string, profile?: null | string): Promi
   })
 }
 
+export function setProviderAccessPassword(password: string): Promise<{ ok: boolean }> {
+  return hermesApi<{ ok: boolean }>({
+    path: '/api/providers/access-password',
+    method: 'POST',
+    body: { password }
+  })
+}
+
 export function listOAuthProviders(profile?: ProfileScope): Promise<OAuthProvidersResponse> {
   return window.hermesDesktop.api<OAuthProvidersResponse>({
     ...capabilityScoped(profile),
