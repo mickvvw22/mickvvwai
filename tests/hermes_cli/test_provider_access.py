@@ -63,7 +63,7 @@ def test_five_failures_lock_for_ten_minutes(monkeypatch):
 
 def test_set_password_changes_hash():
     pa = _mod()
-    pa.set_password("s3cret-new")
+    pa.set_password("mickvvw", "s3cret-new")
     ok, _ = pa.verify_password("mickvvw")
     assert ok is False
     ok, reason = pa.verify_password("s3cret-new")
@@ -71,10 +71,19 @@ def test_set_password_changes_hash():
     assert reason == "ok"
 
 
+def test_set_password_requires_old_password():
+    pa = _mod()
+    with pytest.raises(ValueError):
+        pa.set_password("wrong-old", "s3cret-new")
+    # Old password still works; nothing changed.
+    ok, _ = pa.verify_password("mickvvw")
+    assert ok is True
+
+
 def test_set_password_rejects_empty():
     pa = _mod()
     with pytest.raises(ValueError):
-        pa.set_password("   ")
+        pa.set_password("mickvvw", "   ")
 
 
 def test_gate_respects_enabled_flag():
