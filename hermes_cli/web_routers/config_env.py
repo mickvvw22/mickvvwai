@@ -458,6 +458,7 @@ def _endpoint_row(
         "context_length": context_length, "discover_models": discover_models,
         "has_api_key": has_api_key, "api_key_preview": api_key_preview,
         "is_current": is_current, "source": source,
+        "added_via": key_entry.get("added_via") if isinstance(key_entry, dict) else None,
     }
 
 
@@ -847,6 +848,19 @@ def delete_custom_endpoint(endpoint_id: str, profile: Optional[str] = None):
             response = _custom_endpoint_response(cfg)
         response["ok"] = True
         return response
+
+
+@router.post("/api/providers/access-password")
+def set_provider_access_password(body: dict[str, Any]):
+    """Set the provider-access password. The plaintext travels the local loopback
+    API only; it is hashed (SHA-256) before persistence, never stored raw."""
+    from hermes_cli import provider_access as pa
+
+    try:
+        pa.set_password((body or {}).get("password") or "")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"ok": True}
 
 
 @router.post("/api/providers/custom-endpoints/validate")
