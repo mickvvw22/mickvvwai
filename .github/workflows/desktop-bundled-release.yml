@@ -274,6 +274,7 @@ jobs:
         run: python3 -m scripts.releases.dispatch_log
 
       - name: Archive every pinned input
+        continue-on-error: true
         # Runner Python is intentional: the toolchain's upstream may be gone.
         # Same checkout contract the standalone archive job had: the tag ref
         # for tag builds, the dispatch head for commit builds.
