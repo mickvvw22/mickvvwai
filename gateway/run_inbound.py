@@ -1306,6 +1306,15 @@ class GatewayInboundMixin(GatewayPluginInjectionMixin):
         if _paused_notice is not None:
             return _paused_notice
 
+        # 自然语言添加供应商意图识别
+        try:
+            _t=(event.text or "").strip()
+            if _t and not _t.startswith("/") and not is_internal:
+                _l=_t.lower()
+                if "添加供应商" in _t or "add provider" in _l:
+                    return "请按格式发送:"+chr(10)+"/padd 名称|base_url|key|模型"
+        except Exception:
+            pass
         _quick_key = self._session_key_for_source(source)
         _reply = await self._hm_pending_reply_intercepts(event, source, _quick_key)
         if _reply is not None:
