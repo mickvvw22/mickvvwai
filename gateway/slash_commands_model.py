@@ -858,7 +858,24 @@ class GatewayModelCommandsMixin:
             return t("gateway.addprovider.save_failed_detail", error=saved.get("error") or "")
         if not result.get("ok"):
             return t("gateway.addprovider.saved_unverified", provider=pending.get("name"))
-        return t("gateway.addprovider.saved", provider=pending.get("name"))
+        # AutoFetch
+        _mt=""
+        try:
+            import urllib.request,json
+            _b=(pending.get("base_url") or "").rstrip("/")
+            _k=pending.get("api_key") or ""
+            if _b and _k:
+                _q=urllib.request.Request(_b+"/v1/models",headers={"Authorization":"Bearer "+_k})
+                with urllib.request.urlopen(_q,timeout=15) as _r:
+                    _d=json.load(_r).get("data",[])
+                _ids=[m.get("id") for m in _d if m.get("id")]
+                if _ids:
+                    _mt=chr(10)+chr(10)+"Models:"
+                    for _m in sorted(_ids)[:20]:
+                        _mt+=chr(10)+"- "+_m
+        except Exception:
+            pass
+        return t("gateway.addprovider.saved",provider=pending.get("name"))+_mt
 
     async def _pa_list_providers(self, event: MessageEvent) -> str:
         """List providers with their source badges."""
