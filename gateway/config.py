@@ -416,6 +416,7 @@ class PlatformConfig:
     gateway_restart_notification: bool = True  # "♻️ Gateway online/restarted" pings; noise on end-user platforms
     typing_indicator: bool = True
     typing_timeout: float = 180.0
+    reply_language: str = "zh-CN"
     # Working-state text for text-rendering indicators (Slack status, Google Chat marker); None = platform default.
     typing_status_text: Optional[str] = None
     channel_overrides: dict[str, ChannelOverride] = field(default_factory=dict)
@@ -427,6 +428,7 @@ class PlatformConfig:
             "gateway_restart_notification": self.gateway_restart_notification,
             "typing_indicator": self.typing_indicator,
             "typing_timeout": self.typing_timeout,
+        "reply_language": self.reply_language,
             **({"typing_status_text": self.typing_status_text} if self.typing_status_text is not None else {}),
             **{k: v for k in ("token", "api_key") if (v := getattr(self, k))},
         }
@@ -440,7 +442,7 @@ class PlatformConfig:
     # config and belongs in ``extra`` (see from_dict).
     _TYPED_KEYS = frozenset({
         "enabled", "token", "api_key", "home_channel", "reply_to_mode", "channel_overrides", "extra",
-        "gateway_restart_notification", "typing_indicator", "typing_status_text", "typing_timeout",
+        "gateway_restart_notification", "typing_indicator", "typing_status_text", "typing_timeout", "reply_language",
     })
 
     @classmethod
@@ -473,6 +475,7 @@ class PlatformConfig:
             gateway_restart_notification=_coerce_bool(toplevel_or_extra("gateway_restart_notification"), True),
             typing_indicator=_coerce_bool(toplevel_or_extra("typing_indicator"), True),
             typing_timeout=_coerce_float(toplevel_or_extra("typing_timeout"), 180.0),
+        reply_language=toplevel_or_extra("reply_language") or "zh-CN",
             typing_status_text=toplevel_or_extra("typing_status_text"),  # string passthrough, no coercion
             channel_overrides=channel_overrides,
             extra=extra,
