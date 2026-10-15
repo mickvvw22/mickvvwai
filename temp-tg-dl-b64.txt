@@ -1,0 +1,468 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Telegram 直链下载服务 (tg-dl)
+
+把发到指定 Telegram 频道的文件变成可直接下载的短链接。
+走 MTProto（Telethon），没有 Bot API 的 20MB 限制，大文件流式传输，
+1GB+ 文件也不会把内存打爆。
+
+工作流程：
+  1. 用户把文件发到配置的 Telegram 私人频道（或 Saved Messages）
+  2. 服务自动监听到新文件，生成短码，（可选）把直链发到 Saved Messages
+  3. 任何人/AI 访问 https://<base_url>/t/<code> 即可直接下载，
+     服务器从 Telegram 流式拉取并转发，支持断点续传（Range）
+
+配置见 config.example.yaml，复制为 config.yaml 后填写。
+"""
+
+import argparse
+import hmac
+import logging
+import mimetypes
+import os
+import re
+import secrets
+import sqlite3
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import quote
+
+import yaml
+from fastapi import FastAPI, Request, Response, HTTPException
+from fastapi.responses import StreamingResponse, JSONResponse, HTMLResponse
+from telethon import TelegramClient, events
+from telethon.sessions import StringSession
+from telethon.tl.types import DocumentAttributeFilename
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+log = logging.getLogger("tg-dl")
+
+# ---------------------------------------------------------------------------
+# 配置
+# ---------------------------------------------------------------------------
+
+DEFAULT_CONFIG = {
+    "api_id": 0,
+    "api_hash": "",
+    "session_file": "/root/.tg-dl/session.txt",
+    "channel": "me",
+    "host": "127.0.0.1",
+    "port": 18082,
+    "base_url": "https://s.mick.cc.cd",
+    "link_prefix": "/t",
+    "code_length": 8,
+    "admin_token": "",
+    "db_path": "/opt/tg-dl/links.db",
+    "chunk_size": 1048576,  # 1MB
+    "notify_saved_messages": True,
+}
+
+# 环境变量覆盖（优先级高于 yaml）
+ENV_OVERRIDES = {
+    "TGDL_API_ID": ("api_id", int),
+    "TGDL_API_HASH": ("api_hash", str),
+    "TGDL_SESSION_FILE": ("session_file", str),
+    "TGDL_CHANNEL": ("channel", str),
+    "TGDL_HOST": ("host", str),
+    "TGDL_PORT": ("port", int),
+    "TGDL_ADMIN_TOKEN": ("admin_token", str),
+    "TGDL_BASE_URL": ("base_url", str),
+    "TGDL_DB_PATH": ("db_path", str),
+}
+
+
+def load_config(path: str) -> dict:
+    cfg = dict(DEFAULT_CONFIG)
+    p = Path(path)
+    if p.exists():
+        with open(p, "r", encoding="utf-8") as f:
+            user_cfg = yaml.safe_load(f) or {}
+        cfg.update(user_cfg)
+    else:
+        log.warning("配置文件 %s 不存在，使用默认配置", path)
+    for env_key, (cfg_key, cast) in ENV_OVERRIDES.items():
+        val = os.environ.get(env_key)
+        if val:
+            try:
+                cfg[cfg_key] = cast(val)
+            except ValueError:
+                log.warning("环境变量 %s 格式错误，已忽略", env_key)
+    return cfg
+
+
+def validate_config(cfg: dict) -> None:
+    if not cfg.get("api_id") or not cfg.get("api_hash"):
+        raise SystemExit(
+            "未配置 api_id / api_hash，请复制 config.example.yaml 为 config.yaml 并填写，"
+            "或设置环境变量 TGDL_API_ID / TGDL_API_HASH（去 https://my.telegram.org 申请）"
+        )
+    session_file = Path(cfg["session_file"])
+    if not session_file.exists():
+        raise SystemExit(f"session 文件不存在: {session_file}")
+    content = session_file.read_text(encoding="utf-8").strip()
+    if len(content) < 50:
+        raise SystemExit(f"session 文件内容异常（太短），请检查: {session_file}")
+
+
+# ---------------------------------------------------------------------------
+# 短链存储（SQLite）
+# ---------------------------------------------------------------------------
+
+class LinkDB:
+    def __init__(self, path: str):
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+        self.conn = sqlite3.connect(path, check_same_thread=False)
+        self.conn.execute(
+            """CREATE TABLE IF NOT EXISTS links (
+                code TEXT PRIMARY KEY,
+                chat_id INTEGER NOT NULL,
+                message_id INTEGER NOT NULL,
+                file_name TEXT NOT NULL,
+                file_size INTEGER NOT NULL,
+                mime_type TEXT,
+                created_at TEXT NOT NULL
+            )"""
+        )
+        self.conn.commit()
+
+    def add(self, chat_id: int, message_id: int, file_name: str,
+            file_size: int, mime_type: str, code_length: int = 8) -> str:
+        for _ in range(10):
+            code = secrets.token_urlsafe(9)[:code_length].replace("-", "x").replace("_", "y")
+            try:
+                self.conn.execute(
+                    "INSERT INTO links VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (code, chat_id, message_id, file_name, file_size, mime_type,
+                     datetime.now(timezone.utc).isoformat()),
+                )
+                self.conn.commit()
+                return code
+            except sqlite3.IntegrityError:
+                continue
+        raise RuntimeError("生成短码失败（多次冲突），请重试")
+
+    def get(self, code: str):
+        cur = self.conn.execute("SELECT * FROM links WHERE code = ?", (code,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        keys = ["code", "chat_id", "message_id", "file_name", "file_size",
+                "mime_type", "created_at"]
+        return dict(zip(keys, row))
+
+    def list(self, limit: int = 50):
+        cur = self.conn.execute(
+            "SELECT * FROM links ORDER BY created_at DESC LIMIT ?", (limit,))
+        keys = ["code", "chat_id", "message_id", "file_name", "file_size",
+                "mime_type", "created_at"]
+        return [dict(zip(keys, r)) for r in cur.fetchall()]
+
+    def delete(self, code: str) -> bool:
+        cur = self.conn.execute("DELETE FROM links WHERE code = ?", (code,))
+        self.conn.commit()
+        return cur.rowcount > 0
+
+
+# ---------------------------------------------------------------------------
+# Telegram（Telethon / MTProto）
+# ---------------------------------------------------------------------------
+
+def doc_info(msg):
+    """从消息中提取文件名、大小、MIME。"""
+    doc = msg.document
+    name = None
+    for attr in doc.attributes:
+        if isinstance(attr, DocumentAttributeFilename):
+            name = attr.file_name
+            break
+    name = name or f"file_{msg.id}"
+    mime = doc.mime_type or mimetypes.guess_type(name)[0] or "application/octet-stream"
+    return name, doc.size, mime
+
+
+class TGService:
+    def __init__(self, cfg: dict, db: LinkDB):
+        self.cfg = cfg
+        self.db = db
+        self.client: TelegramClient | None = None
+        self.channel = None
+
+    def public_url(self, code: str) -> str:
+        base = self.cfg["base_url"].rstrip("/")
+        prefix = self.cfg["link_prefix"].rstrip("/")
+        return f"{base}{prefix}/{code}"
+
+    async def start(self) -> None:
+        session_str = Path(self.cfg["session_file"]).read_text(encoding="utf-8").strip()
+        self.client = TelegramClient(
+            StringSession(session_str),
+            self.cfg["api_id"],
+            self.cfg["api_hash"],
+        )
+        try:
+            await self.client.start()
+        except Exception as e:
+            raise SystemExit(f"Telegram 登录失败（session 可能已失效，需重新生成）: {e}")
+        me = await self.client.get_me()
+        log.info("Telegram 已登录: %s (id=%s)", getattr(me, "username", None) or me.first_name, me.id)
+
+        try:
+            self.channel = await self.client.get_entity(self.cfg["channel"])
+        except Exception as e:
+            raise SystemExit(f"找不到监控频道 {self.cfg['channel']!r}: {e}，请检查配置")
+        self.client.add_event_handler(
+            self.on_new_message,
+            events.NewMessage(chats=self.channel),
+        )
+        log.info("正在监听频道: %s", self.cfg["channel"])
+
+    async def on_new_message(self, event) -> None:
+        """频道收到新文件时自动生成直链。"""
+        if not event.document:
+            return
+        f = event.file
+        name = f.name or f"file_{event.id}"
+        code = self.db.add(
+            chat_id=event.chat_id,
+            message_id=event.id,
+            file_name=name,
+            file_size=f.size,
+            mime_type=f.mime_type,
+            code_length=self.cfg["code_length"],
+        )
+        url = self.public_url(code)
+        log.info("新文件: %s (%d bytes) -> %s", name, f.size, url)
+        if self.cfg.get("notify_saved_messages"):
+            try:
+                await event.client.send_message("me", f"📁 {name}\n直链: {url}")
+            except Exception as e:
+                log.warning("发送 Saved Messages 通知失败: %s", e)
+
+    async def get_message(self, chat_id: int, message_id: int):
+        try:
+            return await self.client.get_messages(chat_id, ids=message_id)
+        except Exception as e:
+            log.warning("获取消息失败 chat=%s msg=%s: %s", chat_id, message_id, e)
+            return None
+
+
+# ---------------------------------------------------------------------------
+# Web 服务（FastAPI）
+# ---------------------------------------------------------------------------
+
+cfg: dict = {}
+db: LinkDB | None = None
+tg: TGService | None = None
+
+RANGE_RE = re.compile(r"bytes=(\d*)-(\d*)$")
+
+
+def parse_range(header_value: str, size: int):
+    """解析 Range 头，返回 (start, end) 闭区间，非法返回 None。"""
+    m = RANGE_RE.match(header_value.strip())
+    if not m:
+        return None
+    s, e = m.groups()
+    if s == "" and e == "":
+        return None
+    if s == "":
+        n = int(e)
+        start = max(0, size - n)
+        end = size - 1
+    elif e == "":
+        start = int(s)
+        end = size - 1
+    else:
+        start, end = int(s), int(e)
+    if start >= size or end < start:
+        return None
+    return start, min(end, size - 1)
+
+
+def content_disposition(filename: str) -> str:
+    try:
+        filename.encode("ascii")
+        safe = filename.replace('"', "_")
+        return f'attachment; filename="{safe}"'
+    except UnicodeEncodeError:
+        return f"attachment; filename*=UTF-8''{quote(filename)}"
+
+
+def download_headers(name: str, size: int, mime: str, offset: int,
+                     length: int, partial: bool):
+    headers = {
+        "Content-Disposition": content_disposition(name),
+        "Content-Length": str(length),
+        "Accept-Ranges": "bytes",
+    }
+    if partial:
+        headers["Content-Range"] = f"bytes {offset}-{offset + length - 1}/{size}"
+    return headers
+
+
+def require_admin(request: Request) -> None:
+    token = (cfg.get("admin_token") or "").strip()
+    if not token:
+        return  # 未配置则不鉴权（不推荐）
+    provided = (
+        request.headers.get("x-admin-token")
+        or request.query_params.get("token")
+        or ""
+    )
+    if not hmac.compare_digest(provided, token):
+        raise HTTPException(status_code=403, detail="无权访问（admin token 错误）")
+
+
+async def resolve_media(code: str):
+    row = db.get(code)
+    if not row:
+        raise HTTPException(status_code=404, detail="链接不存在")
+    msg = await tg.get_message(row["chat_id"], row["message_id"])
+    if not msg or not msg.media:
+        raise HTTPException(status_code=410, detail="文件已从 Telegram 删除")
+    name, size, mime = doc_info(msg)
+    return msg, name, size, mime
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global tg
+    tg = TGService(cfg, db)
+    await tg.start()
+    yield
+    if tg.client:
+        await tg.client.disconnect()
+
+
+app = FastAPI(title="tg-dl", lifespan=lifespan)
+
+
+@app.get("/health")
+async def health():
+    ok = bool(tg and tg.client and tg.client.is_connected())
+    return JSONResponse({"ok": ok})
+
+
+@app.get("/", response_class=HTMLResponse)
+async def index():
+    return """<!doctype html><html><head><meta charset="utf-8"><title>tg-dl</title></head>
+<body style="font-family:sans-serif;max-width:640px;margin:40px auto;line-height:1.8">
+<h2>📦 Telegram 直链下载服务</h2>
+<p>把文件发到监控的 Telegram 频道，直链会自动生成并推送到你的 Saved Messages。</p>
+<ul>
+<li>下载：<code>/t/&lt;code&gt;</code>（支持断点续传）</li>
+<li>健康检查：<code>/health</code></li>
+<li>管理接口需 <code>X-Admin-Token</code>：<code>GET /api/files</code>、
+<code>POST /api/register</code>、<code>DELETE /api/files/{code}</code></li>
+</ul></body></html>"""
+
+
+@app.get("/t/{code}")
+async def download(code: str, request: Request):
+    msg, name, size, mime = await resolve_media(code)
+
+    range_h = request.headers.get("range")
+    status, offset, length = 200, 0, size
+    if range_h:
+        r = parse_range(range_h, size)
+        if r is None:
+            return Response(
+                status_code=416,
+                headers={"Content-Range": f"bytes */{size}"},
+            )
+        start, end = r
+        offset, length = start, end - start + 1
+        status = 206
+
+    headers = download_headers(name, size, mime, offset, length, partial=(status == 206))
+    chunk = cfg["chunk_size"]
+
+    async def gen():
+        async for data in tg.client.iter_download(
+            msg.media, chunk_size=chunk, offset=offset, limit=length
+        ):
+            yield data
+
+    return StreamingResponse(gen(), status_code=status, headers=headers, media_type=mime)
+
+
+@app.head("/t/{code}")
+async def download_head(code: str):
+    msg, name, size, mime = await resolve_media(code)
+    headers = download_headers(name, size, mime, 0, size, partial=False)
+    headers["Content-Type"] = mime
+    return Response(headers=headers)
+
+
+@app.get("/api/files")
+async def api_list(request: Request, limit: int = 50):
+    require_admin(request)
+    items = db.list(limit=min(limit, 200))
+    for it in items:
+        it["url"] = tg.public_url(it["code"])
+    return {"files": items}
+
+
+@app.post("/api/register")
+async def api_register(request: Request):
+    """手动注册：{"chat": "频道(默认配置)", "message_id": 123}"""
+    require_admin(request)
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="请求体必须是 JSON")
+    message_id = body.get("message_id")
+    if not message_id:
+        raise HTTPException(status_code=400, detail="缺少 message_id")
+    chat = body.get("chat") or cfg["channel"]
+    try:
+        entity = await tg.client.get_entity(chat)
+        msg = await tg.client.get_messages(entity, ids=int(message_id))
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"找不到该消息: {e}")
+    if not msg or not msg.document:
+        raise HTTPException(status_code=404, detail="该消息不包含文件")
+    name, size, mime = doc_info(msg)
+    code = db.add(
+        chat_id=msg.chat_id, message_id=msg.id, file_name=name,
+        file_size=size, mime_type=mime, code_length=cfg["code_length"],
+    )
+    return {
+        "code": code,
+        "url": tg.public_url(code),
+        "file_name": name,
+        "file_size": size,
+        "mime_type": mime,
+    }
+
+
+@app.delete("/api/files/{code}")
+async def api_delete(code: str, request: Request):
+    require_admin(request)
+    if not db.delete(code):
+        raise HTTPException(status_code=404, detail="链接不存在")
+    return {"ok": True}
+
+
+def main():
+    global cfg, db
+    parser = argparse.ArgumentParser(description="Telegram 直链下载服务")
+    parser.add_argument("--config", default="config.yaml", help="配置文件路径")
+    args = parser.parse_args()
+
+    cfg = load_config(args.config)
+    validate_config(cfg)
+    db = LinkDB(cfg["db_path"])
+
+    import uvicorn
+    log.info("启动服务 %s:%s", cfg["host"], cfg["port"])
+    uvicorn.run(app, host=cfg["host"], port=int(cfg["port"]), log_level="info")
+
+
+if __name__ == "__main__":
+    main()
