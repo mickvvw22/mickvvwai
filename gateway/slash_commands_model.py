@@ -1173,3 +1173,48 @@ class GatewayModelCommandsMixin:
         if picker_sent:
             return None  # Picker sent — adapter handles the response
         return t("gateway.fast.status", mode=status)
+    async def _handle_addadmin_command(self, event: MessageEvent) -> str:
+        import yaml
+        a=(event.get_command_args() or "").strip()
+        if not a:
+            return "Usage: /addadmin <id>"
+        p="/root/.hermes/config.yaml"
+        c=yaml.safe_load(open(p)) or {}
+        t=c.get("platforms",{}).get("telegram",{})
+        lst=[str(x) for x in (t.get("allow_admin_from") or [])]
+        if a in lst:
+            return "Already admin: "+a
+        lst.append(a)
+        c["platforms"]["telegram"]["allow_admin_from"]=lst
+        yaml.safe_dump(c,open(p,"w"),allow_unicode=True)
+        return "Added admin: "+a
+
+    async def _handle_removeadmin_command(self, event: MessageEvent) -> str:
+        import yaml
+        a=(event.get_command_args() or "").strip()
+        if not a:
+            return "Usage: /removeadmin <id>"
+        p="/root/.hermes/config.yaml"
+        c=yaml.safe_load(open(p)) or {}
+        t=c.get("platforms",{}).get("telegram",{})
+        lst=[str(x) for x in (t.get("allow_admin_from") or [])]
+        if a not in lst:
+            return "Not admin: "+a
+        if len(lst)<=1:
+            return "Cannot remove last admin"
+        lst.remove(a)
+        c["platforms"]["telegram"]["allow_admin_from"]=lst
+        yaml.safe_dump(c,open(p,"w"),allow_unicode=True)
+        return "Removed admin: "+a
+
+    async def _handle_listadmin_command(self, event: MessageEvent) -> str:
+        import yaml
+        p="/root/.hermes/config.yaml"
+        c=yaml.safe_load(open(p)) or {}
+        lst=c.get("platforms",{}).get("telegram",{}).get("allow_admin_from") or []
+        if not lst:
+            return "No admins"
+        r="Admins:"
+        for x in lst:
+            r+=chr(10)+"- "+str(x)
+        return r
