@@ -1178,7 +1178,7 @@ class GatewayModelCommandsMixin:
         import hermes_yaml as yaml
         a=(event.get_command_args() or "").strip()
         if not a:
-            return "用法：/addadmin <用户ID>"
+            return "添加 Telegram 管理员：/addadmin <用户ID>"
         p="/root/.hermes/config.yaml"
         c=yaml.safe_load(open(p)) or {}
         t=c.get("platforms",{}).get("telegram",{})
@@ -1194,7 +1194,7 @@ class GatewayModelCommandsMixin:
         import hermes_yaml as yaml
         a=(event.get_command_args() or "").strip()
         if not a:
-            return "用法：/removeadmin <用户ID>"
+            return "删除 Telegram 管理员：/removeadmin <用户ID>"
         p="/root/.hermes/config.yaml"
         c=yaml.safe_load(open(p)) or {}
         t=c.get("platforms",{}).get("telegram",{})
