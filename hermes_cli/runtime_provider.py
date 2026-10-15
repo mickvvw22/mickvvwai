@@ -1146,6 +1146,9 @@ def resolve_runtime_with_fallback(config: Optional[dict[str, Any]], *, requested
         return resolve_runtime_provider(requested=requested, target_model=target_model,
                                         explicit_base_url=explicit_base_url, explicit_api_key=explicit_api_key), None
     except AuthError as primary_exc:
+        _gw_cfg = (config or {}).get("gateway") or {}
+        if not _gw_cfg.get("auto_failover", False):
+            raise
         from hermes_cli.fallback_config import effective_runtime_provider, get_fallback_chain, resolve_entry_api_key
         for entry in get_fallback_chain(config):
             provider = (entry.get("provider") or "").strip().lower()

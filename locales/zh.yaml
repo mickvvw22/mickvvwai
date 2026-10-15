@@ -112,6 +112,14 @@ gateway:
     disabled: "已禁用"
     no_url: "未配置地址"
     ok: "可用，{count} 个模型"
+  pfailover:
+    usage: "用法：/pfailover on|开 或 /pfailover off|关"
+    status: "自动切换当前状态：{status}"
+    on: "开启"
+    off: "关闭"
+    done: "自动切换已{status}。"
+    read_failed: "读取配置失败。"
+    save_failed: "保存配置失败。"
   restartapp:
     dm_only: "出于安全考虑，请仅在私聊中重启 Mickvvw。"
     admin_only: "只有已配置的网关管理员可以重启关联的 Mickvvw 桌面应用。"

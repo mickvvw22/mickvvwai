@@ -1343,3 +1343,31 @@ class GatewayModelCommandsMixin:
             except Exception as e:
                 lines.append(f"❌ {name}：{str(e)[:50]}")
         return "\n".join(lines)
+
+    async def _handle_pfailover_command(self, event: MessageEvent) -> str:
+        """Toggle auto-failover."""
+        import hermes_yaml as yaml
+        cfg_path = "/root/.hermes/config.yaml"
+        try:
+            cfg = yaml.safe_load(open(cfg_path)) or {}
+        except Exception:
+            return t("gateway.pfailover.read_failed")
+        args = event.text.split()[1:] if hasattr(event, "text") else []
+        gw = cfg.get("gateway") or {}
+        if not args:
+            cur = gw.get("auto_failover", False)
+            return t("gateway.pfailover.status", status=t("gateway.pfailover.on") if cur else t("gateway.pfailover.off"))
+        val = args[0].lower()
+        if val in ("on", "\u5f00", "\u5f00\u542f", "true", "1"):
+            new_val = True
+        elif val in ("off", "\u5173", "\u5173\u95ed", "false", "0"):
+            new_val = False
+        else:
+            return t("gateway.pfailover.usage")
+        gw["auto_failover"] = new_val
+        cfg["gateway"] = gw
+        try:
+            yaml.safe_dump(cfg, open(cfg_path, "w"))
+        except Exception:
+            return t("gateway.pfailover.save_failed")
+        return t("gateway.pfailover.done", status=t("gateway.pfailover.on") if new_val else t("gateway.pfailover.off"))
