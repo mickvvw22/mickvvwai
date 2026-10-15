@@ -284,6 +284,7 @@ export interface CustomEndpoint {
   models: string[]
   name: string
   source?: string
+  added_via?: 'bot' | 'chat' | 'desktop' | string
 }
 
 export interface CustomEndpointsResponse {
