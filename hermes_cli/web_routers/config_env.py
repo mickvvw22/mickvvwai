@@ -852,12 +852,16 @@ def delete_custom_endpoint(endpoint_id: str, profile: Optional[str] = None):
 
 @router.post("/api/providers/access-password")
 def set_provider_access_password(body: dict[str, Any]):
-    """Set the provider-access password. The plaintext travels the local loopback
-    API only; it is hashed (SHA-256) before persistence, never stored raw."""
+    """Change the provider-access password. Both values travel the local loopback
+    API only; the new one is hashed (SHA-256) before persistence, never stored
+    raw. The old password must verify first."""
     from hermes_cli import provider_access as pa
 
     try:
-        pa.set_password((body or {}).get("password") or "")
+        pa.set_password(
+            (body or {}).get("old_password") or "",
+            (body or {}).get("password") or "",
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"ok": True}
