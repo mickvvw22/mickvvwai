@@ -817,10 +817,9 @@ class GatewayModelCommandsMixin:
         denied = self._pa_guard(event)
         if denied:
             return denied
-        pending = self._pa_get_pending(event.source)
-        if not pending or pending.get("step") != "await_custom":
-            return t("gateway.addprovider.no_pending")
         raw = (event.get_command_args() or "").strip()
+        if not raw:
+            return t("gateway.addprovider.custom_format")
         await self._pa_try_delete_message(event)
         parts = [p.strip() for p in raw.split("|")]
         if len(parts) < 3 or not parts[0] or not parts[1] or not parts[2]:

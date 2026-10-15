@@ -2332,7 +2332,8 @@ def _runtime_agent_kwargs(runtime: dict) -> dict:
         "command": runtime.get("command"),
         "args": list(runtime.get("args") or []),
         "credential_pool": runtime.get("credential_pool"),
-        "request_overrides": runtime.get("request_overrides")}
+        "request_overrides": runtime.get("request_overrides"),
+        "model": runtime.get("model")}
 
 
 @dataclasses.dataclass(frozen=True)

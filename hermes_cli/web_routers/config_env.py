@@ -598,6 +598,15 @@ def _write_custom_endpoint(cfg: dict[str, Any], body: CustomEndpointUpdate) -> t
     # An edit payload carries the stored key verbatim; slugging it first would
     # miss the entry and fork a slugged twin next to the original.
     stored_key, existing = _resolve_custom_endpoint_entry(providers, body.id or body.name)
+    # 以 base_url 为准判重：名称仅作显示，不参与判重
+    if existing is None:
+        norm_url = base_url.strip().rstrip("/").lower()
+        for k, v in providers.items():
+            if isinstance(v, dict):
+                v_url = str(v.get("base_url", "")).strip().rstrip("/").lower()
+                if v_url and v_url == norm_url:
+                    stored_key, existing = k, v
+                    break
     endpoint_id = coerce_provider_id(stored_key) if existing is not None else _custom_endpoint_id(body.id or body.name)
     if existing is None:
         # Settings saves the row the list rendered. A legacy custom_providers
