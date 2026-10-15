@@ -113,6 +113,7 @@ _TELEGRAM_PRIORITY_TIERS: dict[str, tuple[str, ...]] = {
 _TELEGRAM_MENU_PRIORITY = (
     "help", "new", "clearhistory", "stop", "pause", "compress", "model", "personality",
     "approve", "deny", "status", "context", "usage", "reasoning", "restart", "restartapp", "addmodel",
+    "addprovider",
     "egress", "resume", "sessions", "debug", "update", "verbose", "commands",
     "queue", "steer", "bg", "btw", "platforms", "platform", "profile", "whoami")
 
@@ -202,6 +203,7 @@ _TELEGRAM_MENU_DESCRIPTIONS_ZH_CN: dict[str, str] = {
     "restart": "等待当前任务处理完毕后，平稳重启网关",
     "restartapp": "重启已配对的本地 Mickvvw 桌面应用（仅管理员）",
     "addmodel": "查看在 Mickvvw 设置中安全添加模型的方法",
+    "addprovider": "添加模型供应商（接入前需密码确认）",
     "egress": "查看 Docker 出站代理状态",
     "resume": "恢复之前命名的会话",
     "sessions": "浏览现有会话并恢复其中一个",
