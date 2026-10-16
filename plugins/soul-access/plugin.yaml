@@ -1,0 +1,4 @@
+name: soul-access
+version: 1.0.0
+description: "View or change the bot persona prompt (SOUL.md) from AI chat, guarded by the shared provider-access password gate."
+author: "Mickvvw"
