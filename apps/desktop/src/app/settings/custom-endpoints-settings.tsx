@@ -27,7 +27,17 @@ import type {
 } from '@/types/hermes'
 
 import { ComboboxInput } from './combobox-input'
-import { EmptyState, Pill, SectionHeading, SettingsContent, SettingsSkeleton } from './primitives'
+import { Pill, SectionHeading, SettingsContent, SettingsSkeleton } from './primitives'
+
+// Local EmptyState to avoid re-export chain issues (React #130)
+function EmptyState({ title, description }: { title: string; description?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <div className="text-lg font-medium">{title}</div>
+      {description && <div className="mt-2 text-sm text-muted-foreground">{description}</div>}
+    </div>
+  )
+}
 import { SettingsProfileScope } from './profile-scope'
 
 interface CustomEndpointsSettingsProps {
