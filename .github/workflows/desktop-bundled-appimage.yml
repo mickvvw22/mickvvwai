@@ -17,7 +17,6 @@ jobs:
     name: Build bundled Linux AppImage (x64)
     runs-on: ubuntu-24.04
     timeout-minutes: 180
-    cache-mode: write
     env:
       npm_config_replace_registry_host: always # map lockfile mirror hosts; integrity checks remain enabled
     steps:
@@ -34,24 +33,33 @@ jobs:
           set -euo pipefail
           echo 'Disk space before cleanup:'
           df -h / "$GITHUB_WORKSPACE"
+          # NOTE: this build uses the repo's own setup-pm toolchain (Python/Node);
+          # the SDKs below are never touched by the AppImage pipeline.
           for path in \
             /usr/local/lib/android \
             /usr/local/.ghcup \
             /opt/hostedtoolcache/CodeQL \
             /usr/share/dotnet \
-            /usr/local/share/powershell; do
-            if [ -d "$path" ]; then
+            /usr/local/share/powershell \
+            /opt/ghc \
+            /usr/share/swift \
+            /opt/az \
+            /opt/microsoft \
+            /usr/local/julia*; do
+            if [ -e "$path" ]; then
               echo "Removing unused hosted-runner SDK: $path"
               sudo rm -rf -- "$path"
             fi
           done
+          echo 'Pruning Docker images/volumes (not used by this build):'
+          docker system prune -af --volumes 2>/dev/null || true
           sudo apt-get clean
           echo 'Disk space after cleanup:'
           df -h / "$GITHUB_WORKSPACE"
           available_kib="$(df -Pk "$GITHUB_WORKSPACE" | awk 'NR == 2 {print $4}')"
           printf 'available_kib=%s\n' "$available_kib"
-          if [ "$available_kib" -lt 8388608 ]; then
-            printf '::error::Only %.1f GiB free after cleanup; at least 8 GiB is required before bundled dependency preparation.\n' "$(awk -v kib="$available_kib" 'BEGIN {print kib / 1024 / 1024}')"
+          if [ "$available_kib" -lt 12582912 ]; then
+            printf '::error::Only %.1f GiB free after cleanup; at least 12 GiB is required before bundled dependency preparation.\n' "$(awk -v kib="$available_kib" 'BEGIN {print kib / 1024 / 1024}')"
             exit 1
           fi
 
