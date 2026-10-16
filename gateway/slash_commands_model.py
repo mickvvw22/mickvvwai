@@ -815,7 +815,7 @@ class GatewayModelCommandsMixin:
         return t("gateway.addprovider.saved", provider=label)
 
     async def _handle_padd_command(self, event: MessageEvent) -> str:
-        """Handle /padd — one-shot custom provider: /padd <name> | <base_url> | <key> | <model>."""
+        """Handle /padd — one-shot custom provider: /padd <name> | <base_url> | <key> | <model1,model2>."""
         denied = self._pa_guard(event)
         if denied:
             return denied
@@ -827,10 +827,12 @@ class GatewayModelCommandsMixin:
         if len(parts) < 3 or not parts[0] or not parts[1] or not parts[2]:
             return t("gateway.addprovider.custom_format")
         name, base_url, api_key = parts[0], parts[1], parts[2]
-        model = parts[3] if len(parts) > 3 else ""
+        # Models: comma-separated, optional
+        models_raw = parts[3] if len(parts) > 3 else ""
+        models = [m.strip() for m in models_raw.split(",") if m.strip()] if models_raw else []
         self._pa_clear_pending(event.source)
         self._pa_set_pending(event.source, {"step": "await_password", "next": "await_custom_key",
-                                            "name": name, "base_url": base_url, "model": model,
+                                            "name": name, "base_url": base_url, "models": models,
                                             "api_key": api_key})
         return t("gateway.addprovider.password_prompt", provider=name)
 
@@ -840,8 +842,11 @@ class GatewayModelCommandsMixin:
         from hermes_cli.web_models import CustomEndpointUpdate
         from hermes_cli.web_routers.config_env import validate_custom_endpoint
 
+        models = pending.get("models") or []
+        # For validation, use first model or empty
+        model_for_validation = models[0] if models else ""
         body = CustomEndpointUpdate(name=pending.get("name") or "", base_url=pending.get("base_url") or "",
-                                    model=pending.get("model") or "", api_key=pending.get("api_key") or "")
+                                    model=model_for_validation, api_key=pending.get("api_key") or "")
         try:
             result = await validate_custom_endpoint(body)
         except Exception as exc:
@@ -852,7 +857,7 @@ class GatewayModelCommandsMixin:
         try:
             saved = await asyncio.to_thread(
                 pa.add_custom_endpoint, pending.get("name"), pending.get("base_url"),
-                pending.get("api_key"), pending.get("model"), pa.SOURCE_BOT)
+                pending.get("api_key"), model_for_validation, pa.SOURCE_BOT)
         except Exception as exc:
             logger.warning("addprovider: failed to save custom endpoint: %s", exc)
             return t("gateway.addprovider.save_failed")
@@ -860,24 +865,140 @@ class GatewayModelCommandsMixin:
             return t("gateway.addprovider.save_failed_detail", error=saved.get("error") or "")
         if not result.get("ok"):
             return t("gateway.addprovider.saved_unverified", provider=pending.get("name"))
-        # AutoFetch
-        _mt=""
+
+        # If models were specified, save them directly and done
+        if models:
+            models_str = ",".join(models)
+            try:
+                # Update the endpoint with the selected models
+                await asyncio.to_thread(
+                    pa.add_custom_endpoint, pending.get("name"), pending.get("base_url"),
+                    pending.get("api_key"), models_str, pa.SOURCE_BOT)
+            except Exception as exc:
+                logger.warning("addprovider: failed to set models: %s", exc)
+            model_list = "\n".join(f"- {m}" for m in models)
+            return t("gateway.addprovider.saved", provider=pending.get("name")) + \
+                f"\n\n已添加模型 ({len(models)}):\n{model_list}"
+
+        # No models specified: fetch from /v1/models, sort by rate, ask user to select
+        fetched = await self._pa_fetch_models_sorted(
+            pending.get("base_url") or "", pending.get("api_key") or "")
+        if not fetched:
+            return t("gateway.addprovider.saved", provider=pending.get("name")) + \
+                "\n\n⚠️ 未能获取模型列表，请手动添加模型。"
+        # Set pending for model selection
+        self._pa_set_pending(event.source, {
+            "step": "await_model_select",
+            "name": pending.get("name"),
+            "base_url": pending.get("base_url"),
+            "api_key": pending.get("api_key"),
+            "models": fetched,  # list of {id, rate}
+        })
+        lines = [f"✅ 供应商 [{pending.get('name')}] 已保存。", "", "可用模型（按倍率排序）:"]
+        for i, m in enumerate(fetched[:30], 1):
+            rate_str = f" (倍率 {m['rate']})" if m.get("rate") is not None else ""
+            lines.append(f"{i}. {m['id']}{rate_str}")
+        lines.append("")
+        lines.append("请选择要添加的模型：")
+        lines.append("- 指定序号：/pmodels 1,3,5")
+        lines.append("- 全部添加：/pmodels all")
+        lines.append("- 跳过：/pmodels skip")
+        return "\n".join(lines)
+
+    async def _pa_fetch_models_sorted(self, base_url: str, api_key: str) -> list:
+        """Fetch models from /v1/models and sort by rate (pricing multiplier)."""
+        import urllib.request
+        import json as _json
         try:
-            import urllib.request,json
-            _b=(pending.get("base_url") or "").rstrip("/")
-            _k=pending.get("api_key") or ""
-            if _b and _k:
-                _q=urllib.request.Request(_b+"/v1/models",headers={"Authorization":"Bearer "+_k})
-                with urllib.request.urlopen(_q,timeout=15) as _r:
-                    _d=json.load(_r).get("data",[])
-                _ids=[m.get("id") for m in _d if m.get("id")]
-                if _ids:
-                    _mt=chr(10)+chr(10)+"可用模型："
-                    for _m in sorted(_ids)[:20]:
-                        _mt+=chr(10)+"- "+_m
-        except Exception:
-            pass
-        return t("gateway.addprovider.saved",provider=pending.get("name"))+_mt
+            b = (base_url or "").rstrip("/")
+            if not b or not api_key:
+                return []
+            q = urllib.request.Request(
+                b + "/v1/models",
+                headers={"Authorization": "Bearer " + api_key})
+            with urllib.request.urlopen(q, timeout=15) as r:
+                data = _json.load(r).get("data", [])
+            models = []
+            for m in data:
+                mid = m.get("id")
+                if not mid:
+                    continue
+                # Try to extract rate/pricing info
+                rate = None
+                # Common fields: pricing, price, rate, multiplier
+                pricing = m.get("pricing") or {}
+                if isinstance(pricing, dict):
+                    # Try prompt price as rate indicator
+                    prompt_price = pricing.get("prompt") or pricing.get("input")
+                    if prompt_price:
+                        try:
+                            rate = float(str(prompt_price).replace("$", ""))
+                        except (ValueError, TypeError):
+                            pass
+                if rate is None:
+                    rate = m.get("rate") or m.get("price") or m.get("multiplier")
+                    if rate is not None:
+                        try:
+                            rate = float(rate)
+                        except (ValueError, TypeError):
+                            rate = None
+                models.append({"id": mid, "rate": rate})
+            # Sort by rate (None last), then by id
+            models.sort(key=lambda x: (x["rate"] is None, x["rate"] or 0, x["id"]))
+            return models
+        except Exception as exc:
+            logger.warning("addprovider: fetch models error: %s", exc)
+            return []
+
+    async def _handle_pmodels_command(self, event: MessageEvent) -> str:
+        """Handle /pmodels — select models after fetching: /pmodels 1,3,5 | all | skip."""
+        from hermes_cli import provider_access as pa
+
+        denied = self._pa_guard(event)
+        if denied:
+            return denied
+        pending = self._pa_get_pending(event.source)
+        if not pending or pending.get("step") != "await_model_select":
+            return t("gateway.addprovider.no_pending")
+        text = (event.get_command_args() or "").strip()
+        await self._pa_try_delete_message(event)
+        name = pending.get("name") or ""
+        models = pending.get("models") or []
+        self._pa_clear_pending(event.source)
+
+        if text.lower() in ("skip", "跳过"):
+            return f"✅ 供应商 [{name}] 已保存，未添加模型。"
+
+        selected = []
+        if text.lower() in ("all", "全部"):
+            selected = [m["id"] for m in models]
+        else:
+            # Parse comma-separated indices (1-based)
+            try:
+                indices = []
+                for part in text.split(","):
+                    part = part.strip()
+                    if part.isdigit():
+                        idx = int(part) - 1
+                        if 0 <= idx < len(models):
+                            indices.append(idx)
+                selected = [models[i]["id"] for i in indices]
+            except Exception:
+                pass
+
+        if not selected:
+            return "❌ 未选择有效模型，请重新 /padd 或手动添加。"
+        models_str = ",".join(selected)
+        try:
+            await asyncio.to_thread(
+                pa.add_custom_endpoint, name,
+                pending.get("base_url") or "", pending.get("api_key") or "",
+                models_str, pa.SOURCE_BOT)
+        except Exception as exc:
+            logger.warning("addprovider: failed to set models: %s", exc)
+            return t("gateway.addprovider.save_failed")
+        model_list = "\n".join(f"- {m}" for m in selected)
+        return f"✅ 供应商 [{name}] 已添加 {len(selected)} 个模型:\n{model_list}"
 
     async def _pa_list_providers(self, event: MessageEvent) -> str:
         """List providers with their source badges."""

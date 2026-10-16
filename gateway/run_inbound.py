@@ -1312,7 +1312,7 @@ class GatewayInboundMixin(GatewayPluginInjectionMixin):
             if _t and not _t.startswith("/") and not is_internal:
                 _l=_t.lower()
                 if "添加供应商" in _t or "add provider" in _l:
-                    return "请按格式发送:"+chr(10)+"/padd 名称|base_url|key|模型"
+                    return "请按格式发送:"+chr(10)+"/padd 名称|base_url|key|模型1,模型2(可选)"
         except Exception:
             pass
         # 无供应商时主动引导接入
@@ -1324,7 +1324,7 @@ class GatewayInboundMixin(GatewayPluginInjectionMixin):
                 _providers = _cfg.get("providers") or {}
                 _has_provider = any(isinstance(v, dict) for v in _providers.values())
                 if not _has_provider:
-                    return "尚未接入任何 AI 供应商，先添加一个才能聊天："+chr(10)+"/padd 名称|base_url|key|模型"+chr(10)+"例如：/padd 我的供应商|https://api.example.com|sk-xxx|gpt-4"
+                    return "尚未接入任何 AI 供应商，先添加一个才能聊天："+chr(10)+"/padd 名称|base_url|key|模型1,模型2(可选)"+chr(10)+"例如：/padd 我的供应商|https://api.example.com|sk-xxx|gpt-4,gpt-4o"
         except Exception:
             pass
         _quick_key = self._session_key_for_source(source)
