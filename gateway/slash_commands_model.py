@@ -11,7 +11,10 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import dataclasses
+import json
 import logging
+import urllib.error
+import urllib.request
 from typing import Any, Optional
 
 from agent.i18n import t
@@ -147,8 +150,128 @@ def _model_provider_listing_lines(providers) -> list[str]:
     return lines
 
 
+def _redact_secrets(text: str) -> str:
+    """Desensitize API keys/tokens/passwords in log/error messages.
+
+    Masks sk-xxx, Bearer tokens, and password-like values so the relay
+    station (proxy/gateway) cannot harvest credentials from logs.
+    """
+    import re
+    if not text:
+        return text
+    # sk-... (OpenAI-style keys)
+    text = re.sub(r"sk-[A-Za-z0-9_\-\.]{8,}", "sk-***", text)
+    # Bearer tokens
+    text = re.sub(r"Bearer [A-Za-z0-9_\-\.\~\+\/]{8,}", "Bearer ***", text)
+    # x-api-key header values in debug strings
+    text = re.sub(r"(x-api-key[\'\"]?\s*[:=]\s*[\'\"]?)[A-Za-z0-9_\-\.]{8,}", r"\1***", text)
+    return text
+
+
+def _detect_protocol(base_url: str, api_key: Optional[str] = None):
+    """Auto-detect provider protocol by pulling the model list.
+
+    Two rounds:
+      Round 1: {base}/v1/models (OpenAI standard)
+      Round 2: {base}/models (no /v1 prefix, for gateways like newapi)
+    The protocol is determined by which round successfully returns a model
+    list — not just endpoint existence.
+
+    Returns (protocol, models) where protocol is "openai"/"anthropic"/None
+    and models is a list of model id strings (may be empty).
+    Never raises.
+    """
+    base = (base_url or "").rstrip("/")
+    if not base:
+        return None, []
+
+    def _try_models_list(url):
+        """GET url, return list of model ids or None on failure."""
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={"Authorization": f"Bearer {api_key or ''}"},
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status != 200:
+                    return None
+                data = json.loads(resp.read().decode("utf-8", "ignore"))
+                items = data.get("data") if isinstance(data, dict) else None
+                if not isinstance(items, list):
+                    return None
+                models = []
+                for it in items:
+                    mid = it.get("id") if isinstance(it, dict) else None
+                    if mid:
+                        models.append(str(mid))
+                return models
+        except Exception:
+            return None
+
+    # Round 1: standard OpenAI path
+    models = _try_models_list(base + "/v1/models")
+    if models is not None:
+        return "openai", models
+    # Round 2: no /v1 prefix
+    models = _try_models_list(base + "/models")
+    if models is not None:
+        return "openai", models
+
+    # Fallback: probe Anthropic Messages API (both paths) to at least
+    # identify the protocol when no models endpoint exists.
+    for _path in ("/v1/messages", "/messages"):
+        try:
+            payload = json.dumps({
+                "model": "claude-3-5-sonnet-20241022",
+                "max_tokens": 1,
+                "messages": [{"role": "user", "content": "hi"}],
+            }).encode()
+            req = urllib.request.Request(
+                base + _path,
+                data=payload,
+                headers={
+                    "x-api-key": api_key or "",
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=10):
+                return "anthropic", []
+        except urllib.error.HTTPError as e:
+            if e.code in (400, 401, 403, 404):
+                return "anthropic", []
+        except Exception:
+            pass
+    return None, []
+
+
 class GatewayModelCommandsMixin:
     """Model-route slash commands (/model, /codex-runtime, /reasoning, /fast, /personality)."""
+
+    async def _send_inline_submenu(self, event: MessageEvent, menu_key: str) -> bool:
+        """Try to pop an inline-button submenu for a Telegram command.
+
+        Returns True when the submenu was sent, False on any failure so the
+        caller falls back to the original plain-text flow. Never raises.
+        """
+        try:
+            chat_id = getattr(getattr(event, "source", None), "chat_id", None)
+            if not chat_id:
+                return False
+            # Only Telegram supports inline keyboards; other platforms fall back.
+            platform = getattr(event, "platform", "unknown")
+            try:
+                platform_val = str(getattr(platform, "value", platform)).lower()
+            except Exception:
+                platform_val = "unknown"
+            if platform_val not in ("telegram", "unknown"):
+                # "unknown" = MessageEvent without platform attr (be lenient).
+                return False
+            from gateway.telegram_menu import send_submenu_inline
+            return await send_submenu_inline(chat_id, menu_key)
+        except Exception as e:
+            logger.debug("_send_inline_submenu failed for key=%s: %s", menu_key, e)
+            return False
 
     # ----------------------------------------------------------------- /model
 
@@ -536,6 +659,18 @@ class GatewayModelCommandsMixin:
     async def _handle_model_command(self, event: MessageEvent) -> Optional[str]:
         """Handle /model command — switch model. Taken under the switch lock BEFORE the first await so
         concurrent commands commit in issue order (see ``_model_switch_lock``)."""
+        # Telegram: bare /model pops the inline submenu; fall back to the
+        # original flow when the submenu cannot be sent.
+        try:
+            args = (event.get_command_args() or "").strip()
+        except Exception:
+            args = ""
+        if not args:
+            try:
+                if await self._send_inline_submenu(event, "model"):
+                    return None
+            except Exception:
+                pass
         async with self._model_switch_lock():
             return await self._handle_model_command_locked(event)
 
@@ -685,6 +820,23 @@ class GatewayModelCommandsMixin:
             return t("gateway.addprovider.disabled")
         return None
 
+    def _pa_dm_only_guard(self, event: MessageEvent) -> Optional[str]:
+        """DM-only gate WITHOUT the admin check.
+
+        Used by /ppass: the user runs a password-gated operation first and
+        is then prompted to send "/ppass <password>". Requiring admin here
+        would block the password step itself for non-admin users who are
+        allowed to attempt it; the password verification is the real gate.
+        Returns an error text or None. Never raises.
+        """
+        try:
+            source = event.source
+            if str(getattr(source, "chat_type", "")).strip().lower() not in {"dm", "direct", "private"}:
+                return t("gateway.addprovider.dm_only")
+        except Exception:
+            return t("gateway.addprovider.dm_only")
+        return None
+
     async def _pa_try_delete_message(self, event: MessageEvent) -> None:
         """Best-effort delete of the user's secret message.
 
@@ -721,6 +873,13 @@ class GatewayModelCommandsMixin:
             return await self._pa_start_delete(event, " ".join(args[1:]).strip())
         if args:
             return await self._pa_begin_for_provider(event, " ".join(args))
+
+        # 无参数：先弹供应商管理子菜单，失败则走原逻辑
+        try:
+            if await self._send_inline_submenu(event, "provider"):
+                return ""
+        except Exception:
+            pass
 
         async def _on_choice(_chat_id: str, value: str) -> str:
             return await self._pa_begin_for_provider(event, value)
@@ -759,8 +918,13 @@ class GatewayModelCommandsMixin:
         return t("gateway.addprovider.password_prompt", provider=label)
 
     async def _handle_ppass_command(self, event: MessageEvent) -> str:
-        """Handle /ppass — verify the access password for a pending operation."""
-        denied = self._pa_guard(event)
+        """Handle /ppass — verify the access password for a pending operation.
+
+        DM-only, deliberately NOT admin-gated: the user first runs a
+        password-gated operation and is then prompted to send
+        "/ppass <password>". The password verification below is the real gate.
+        """
+        denied = self._pa_dm_only_guard(event)
         if denied:
             return denied
         pending = self._pa_get_pending(event.source)
@@ -788,6 +952,20 @@ class GatewayModelCommandsMixin:
             target = pending.get("target")
             self._pa_set_pending(event.source, {"step": "await_delete_confirm", "target": target})
             return t("gateway.addprovider.delete_confirm", target=target)
+        if nxt == "soul_new":
+            return await self._pa_soul_new(event, pending, password)
+        if nxt == "soul_switch":
+            return await self._pa_soul_switch(event, pending, password)
+        if nxt == "soul_del":
+            return await self._pa_soul_del(event, pending, password)
+        if nxt == "soul_set":
+            return await self._pa_soul_set(event, pending, password)
+        if nxt == "soul_add":
+            return await self._pa_soul_add(event, pending, password)
+        if nxt == "backup_now":
+            return await self._pa_backup_now(event, pending, password)
+        if nxt == "backup_restore":
+            return await self._pa_backup_restore_verified(event, pending, password)
         return t("gateway.addprovider.no_pending")
 
     async def _handle_pkey_command(self, event: MessageEvent) -> str:
@@ -851,7 +1029,7 @@ class GatewayModelCommandsMixin:
             result = await validate_custom_endpoint(body)
         except Exception as exc:
             logger.warning("addprovider: custom validation error: %s", exc)
-            result = {"ok": False, "reachable": False, "message": str(exc)}
+            result = {"ok": False, "reachable": False, "message": _redact_secrets(str(exc))}
         if not result.get("ok") and result.get("reachable"):
             return t("gateway.addprovider.endpoint_rejected", message=result.get("message") or "")
         try:
@@ -906,18 +1084,29 @@ class GatewayModelCommandsMixin:
         return "\n".join(lines)
 
     async def _pa_fetch_models_sorted(self, base_url: str, api_key: str) -> list:
-        """Fetch models from /v1/models and sort by rate (pricing multiplier)."""
+        """Fetch models (two rounds: /v1/models then /models) and sort by rate."""
         import urllib.request
         import json as _json
         try:
             b = (base_url or "").rstrip("/")
             if not b or not api_key:
                 return []
-            q = urllib.request.Request(
-                b + "/v1/models",
-                headers={"Authorization": "Bearer " + api_key})
-            with urllib.request.urlopen(q, timeout=15) as r:
-                data = _json.load(r).get("data", [])
+            data = None
+            # Round 1: standard /v1/models
+            # Round 2: no /v1 prefix (for gateways like newapi)
+            for _path in ("/v1/models", "/models"):
+                try:
+                    q = urllib.request.Request(
+                        b + _path,
+                        headers={"Authorization": "Bearer " + api_key})
+                    with urllib.request.urlopen(q, timeout=15) as r:
+                        if r.status == 200:
+                            data = _json.load(r).get("data", [])
+                            break
+                except Exception:
+                    continue
+            if data is None:
+                return []
             models = []
             for m in data:
                 mid = m.get("id")
@@ -1360,7 +1549,7 @@ class GatewayModelCommandsMixin:
             )
             result = await validate_custom_endpoint(body)
         except Exception as exc:
-            return t("gateway.ptest.failed", error=str(exc))
+            return t("gateway.ptest.failed", error=_redact_secrets(str(exc)))
         _emsg = result.get("message", "")
         if not result.get("reachable"):
             return t("gateway.ptest.unreachable", message=_emsg)
@@ -1462,8 +1651,402 @@ class GatewayModelCommandsMixin:
                     else:
                         lines.append(f"❌ {name}：HTTP {resp.status}")
             except Exception as e:
-                lines.append(f"❌ {name}：{str(e)[:50]}")
+                lines.append(f"❌ {name}：{_redact_secrets(str(e))[:50]}")
         return "\n".join(lines)
+
+
+    async def _handle_pgateway_command(self, event: MessageEvent) -> str:
+        """Handle /pgateway — gateway self-management: status/restart."""
+        try:
+            denied = self._pa_dm_only_guard(event)
+            if denied:
+                return denied
+            args = (event.text or "").strip().split()
+            if len(args) <= 1:
+                try:
+                    if await self._send_inline_submenu(event, "gateway"):
+                        return ""
+                except Exception:
+                    pass
+            sub = args[1].lower() if len(args) > 1 else "status"
+            import subprocess
+            if sub == "status":
+                r = subprocess.run(["pgrep", "-f", "gateway.run"],
+                                   capture_output=True, text=True, timeout=5)
+                pids = r.stdout.strip().split()
+                if pids:
+                    return f"✅ 网关运行中 (pid: {', '.join(pids)})"
+                return "❌ 网关未运行"
+            if sub == "restart":
+                # 异步重启，不阻塞回复
+                import os
+                script = "/opt/mickvvwai-extracted/squashfs-root/resources/agent-payload/hermes-agent/gateway/start_safe.sh"
+                subprocess.Popen(["bash", script],
+                                 stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL,
+                                 start_new_session=True)
+                return "🔄 网关重启中，约10秒后生效"
+            return "用法: /pgateway [status|restart]"
+        except Exception as e:
+            return f"❌ 执行失败: {str(e)[:100]}"
+
+
+    # ------------------------------------------------------------------
+    # WebDAV backup commands (/pbackup, /prestore)
+    # ------------------------------------------------------------------
+
+    def _backup_webdav_client(self):
+        """Build a WebDAVClient from env/.env. Returns (client, error). Never raises."""
+        try:
+            import os
+            from pathlib import Path
+
+            def _read_env_file(path):
+                out = {}
+                try:
+                    for line in Path(path).read_text(encoding="utf-8").splitlines():
+                        line = line.strip()
+                        if not line or line.startswith("#") or "=" not in line:
+                            continue
+                        k, v = line.split("=", 1)
+                        out[k.strip()] = v.strip().strip('"').strip("'")
+                except Exception:
+                    pass
+                return out
+
+            home = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
+            env_file = _read_env_file(home / ".env")
+            url = (os.environ.get("WEBDAV_URL") or env_file.get("WEBDAV_URL") or "").strip()
+            user = os.environ.get("WEBDAV_USER") or env_file.get("WEBDAV_USER") or ""
+            passwd = os.environ.get("WEBDAV_PASS") or env_file.get("WEBDAV_PASS") or ""
+            if not url:
+                return None, "未配置 WebDAV：请在 ~/.hermes/.env 里设置 WEBDAV_URL、WEBDAV_USER、WEBDAV_PASS。"
+            from hermes_cli.webdav_backup import WebDAVClient
+
+            return WebDAVClient(url, user, passwd), ""
+        except Exception as e:
+            return None, f"WebDAV 配置无效：{str(e)[:80]}"
+
+    async def _handle_pbackup_command(self, event: MessageEvent) -> Optional[str]:
+        """Handle /pbackup — one-click backup to WebDAV. Mutations need password."""
+        try:
+            denied = self._pa_dm_only_guard(event)
+            if denied:
+                return denied
+            args = (event.get_command_args() or "").strip().split()
+            if args and args[0].lower() == "list":
+                return await self._pa_backup_list(event)
+            if not args:
+                # Try inline submenu first
+                try:
+                    if await self._send_inline_submenu(event, "backup"):
+                        return None
+                except Exception:
+                    pass
+            # Fallback: password-gated direct backup
+            self._pa_set_pending(event.source, {"step": "await_password", "next": "backup_now"})
+            return "一键备份需要密码验证。\n请输入：/ppass <密码>"
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("pbackup failed: %s", e)
+            return "备份失败，请重试。"
+
+    async def _pa_backup_list(self, event) -> str:
+        """List remote backups. Read-only, no password needed."""
+        try:
+            client, err = self._backup_webdav_client()
+            if client is None:
+                return err
+            import asyncio
+            items = await asyncio.to_thread(client.list_backups)
+            if not items:
+                return "远程没有备份文件。"
+            lines = ["远程备份列表："]
+            for it in items[:20]:
+                name = it.get("filename", "")
+                size = it.get("size", 0)
+                kb = f"{size / 1024:.1f}KB" if size < 1024 * 1024 else f"{size / 1024 / 1024:.1f}MB"
+                lines.append(f"  • {name} ({kb})")
+            lines.append("\n恢复：/prestore <文件名>")
+            return "\n".join(lines)
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("backup list failed: %s", e)
+            return "列出备份失败，请检查 WebDAV 配置与网络。"
+
+    async def _pa_backup_now(self, event, pending, password) -> str:
+        """Do the backup after password verified. Never raises."""
+        try:
+            import asyncio
+            import io
+            import os
+            import secrets
+            import tempfile
+            import zipfile
+            from datetime import datetime, timezone
+            from pathlib import Path
+
+            client, err = self._backup_webdav_client()
+            if client is None:
+                return err
+            home = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
+            # Build zip in memory
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                for rel in ("config.yaml", "SOUL.md"):
+                    p = home / rel
+                    if p.exists() and p.is_file():
+                        zf.write(p, rel)
+                souls = home / "souls"
+                if souls.exists() and souls.is_dir():
+                    for fp in sorted(souls.glob("*.md")):
+                        if fp.is_file():
+                            zf.write(fp, f"souls/{fp.name}")
+            data = buf.getvalue()
+            if not data:
+                return "没有可备份的内容。"
+            ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            filename = f"hermes-cloud-backup-{ts}-{secrets.token_hex(4)}.hbackup"
+            tmp = None
+            try:
+                with tempfile.NamedTemporaryFile(suffix=".hbackup", delete=False) as tf:
+                    tf.write(data)
+                    tmp = tf.name
+                size = await asyncio.to_thread(client.put_file, filename, tmp)
+                kb = f"{size / 1024:.1f}KB"
+                return f"✅ 备份成功：\n{filename}\n大小：{kb}"
+            finally:
+                if tmp:
+                    try:
+                        os.unlink(tmp)
+                    except Exception:
+                        pass
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("backup_now failed: %s", e)
+            return "备份上传失败，请检查 WebDAV 配置与网络。"
+
+    async def _handle_prestore_command(self, event: MessageEvent) -> str:
+        """Handle /prestore <filename> — restore from WebDAV. Password + confirm."""
+        try:
+            denied = self._pa_dm_only_guard(event)
+            if denied:
+                return denied
+            args = (event.get_command_args() or "").strip()
+            if not args:
+                return "用法：/prestore <文件名>\n先用 /pbackup list 查看可恢复的备份。"
+            filename = args.split()[0].rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+            if not filename.endswith(".hbackup") or not filename:
+                return "备份文件名无效。"
+            self._pa_set_pending(event.source, {"step": "await_password", "next": "backup_restore",
+                                                "filename": filename})
+            return f"恢复备份需要密码验证。\n目标：{filename}\n请输入：/ppass <密码>"
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("prestore failed: %s", e)
+            return "恢复失败，请重试。"
+
+    async def _pa_backup_restore_verified(self, event, pending, password) -> str:
+        """After password verified: ask for explicit confirmation."""
+        try:
+            filename = pending.get("filename", "")
+            self._pa_set_pending(event.source, {"step": "await_restore_confirm",
+                                                "filename": filename})
+            return (f"⚠️ 确认恢复备份？\n{filename}\n"
+                    "这将覆盖本地的 config.yaml、SOUL.md 和 souls/。\n"
+                    "确认请发送：/prestoreconfirm")
+        except Exception:
+            return "操作失败，请重试。"
+
+    async def _handle_prestoreconfirm_command(self, event: MessageEvent) -> str:
+        """Confirm backup restore."""
+        try:
+            denied = self._pa_dm_only_guard(event)
+            if denied:
+                return denied
+            pending = self._pa_get_pending(event.source)
+            if not pending or pending.get("step") != "await_restore_confirm":
+                return "没有待确认的恢复操作。"
+            filename = pending.get("filename", "")
+            self._pa_clear_pending(event.source)
+            return await self._pa_do_restore(event, filename)
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("prestoreconfirm failed: %s", e)
+            return "恢复失败，请重试。"
+
+    async def _pa_do_restore(self, event, filename: str) -> str:
+        """Download and unpack the backup. Never raises."""
+        try:
+            import asyncio
+            import io
+            import os
+            import tempfile
+            import zipfile
+            from pathlib import Path
+
+            client, err = self._backup_webdav_client()
+            if client is None:
+                return err
+            home = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
+            fd, tmp = tempfile.mkstemp(suffix=".hbackup")
+            os.close(fd)
+            try:
+                await asyncio.to_thread(client.get_file, filename, tmp)
+                with open(tmp, "rb") as f:
+                    data = f.read()
+                with zipfile.ZipFile(io.BytesIO(data)) as zf:
+                    for info in zf.infolist():
+                        name = info.filename
+                        if name.startswith("/") or ".." in name.split("/"):
+                            return "备份内容非法，已拒绝恢复。"
+                    for info in zf.infolist():
+                        if info.is_dir():
+                            continue
+                        target = home / info.filename
+                        try:
+                            target.resolve().relative_to(home.resolve())
+                        except ValueError:
+                            return "备份内容非法，已拒绝恢复。"
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        with zf.open(info) as src, open(target, "wb") as dst:
+                            while chunk := src.read(1024 * 1024):
+                                dst.write(chunk)
+                return f"✅ 已从备份恢复：\n{filename}\n网关重启后生效。"
+            finally:
+                try:
+                    os.unlink(tmp)
+                except Exception:
+                    pass
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("do_restore failed: %s", e)
+            return "下载/解压备份失败，请检查文件名与网络。"
+
+
+    async def _handle_psessions_command(self, event: MessageEvent) -> str:
+        """Handle /psessions - list recent chat sessions across platforms."""
+        try:
+            denied = self._pa_dm_only_guard(event)
+            if denied:
+                return denied
+            import contextlib
+            import json as _json
+            from datetime import datetime
+            sessions = []
+            try:
+                from hermes_state_registry import acquire, release_or_close
+                db = acquire()
+                try:
+                    lister = getattr(db, "list_gateway_sessions", None)
+                    rows = lister(active_only=False) or [] if callable(lister) else []
+                finally:
+                    release_or_close(db)
+                for row in rows:
+                    try:
+                        origin = None
+                        with contextlib.suppress(TypeError, ValueError):
+                            origin = _json.loads(row["origin_json"]) if row.get("origin_json") else None
+                        platform = row.get("platform") or "?"
+                        chat_name = (origin or {}).get("chat_name") or row.get("display_name") or row.get("chat_id") or "?"
+                        chat_type = row.get("chat_type") or "dm"
+                        last = row.get("last_active") or row.get("updated_at") or ""
+                        uid = str(row.get("user_id") or "")
+                        uid_short = ("..." + uid[-4:]) if len(uid) > 4 else uid
+                        sessions.append((str(last), platform, chat_name, chat_type, uid_short))
+                    except Exception:
+                        continue
+            except Exception as e:
+                return "X 读取会话失败: " + _redact_secrets(str(e))[:80]
+            if not sessions:
+                return "暂无聊天会话记录"
+            sessions.sort(reverse=True)
+            lines = ["📋 最近聊天会话 (10):", ""]
+            for last, platform, name, ctype, uid in sessions[:10]:
+                try:
+                    ts = datetime.fromtimestamp(float(last)).strftime("%m-%d %H:%M") if last else "?"
+                except Exception:
+                    ts = "?"
+                lines.append("• [" + platform + "] " + name + " (" + ctype + uid + ") - " + ts)
+            return "\n".join(lines)
+        except Exception as e:
+            return "X 执行失败: " + _redact_secrets(str(e))[:100]
+
+
+    async def _handle_psend_command(self, event: MessageEvent) -> str:
+        """Handle /psend - admin sends message to user: /psend <chat_id> <msg>."""
+        try:
+            denied = self._pa_guard(event)
+            if denied:
+                return denied
+            raw = (event.get_command_args() or "").strip()
+            if not raw or " " not in raw:
+                return "用法: /psend <chat_id> <消息内容>"
+            chat_id, _, message = raw.partition(" ")
+            chat_id = chat_id.strip()
+            message = message.strip()
+            if not chat_id or not message:
+                return "用法: /psend <chat_id> <消息内容>"
+            import urllib.request
+            import json as _json
+            from telegram_menu import _get_bot_token
+            token = _get_bot_token()
+            if not token:
+                return "X 未配置 Bot Token"
+            payload = _json.dumps({"chat_id": chat_id, "text": "[管理员消息]\n" + message}).encode()
+            req = urllib.request.Request(
+                "https://api.telegram.org/bot" + token + "/sendMessage",
+                data=payload, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = _json.loads(resp.read().decode())
+                if data.get("ok"):
+                    return "✅ 已发送到 " + chat_id
+                return "X 发送失败: " + _redact_secrets(str(data.get("description", ""))[:80])
+        except Exception as e:
+            return "X 执行失败: " + _redact_secrets(str(e))[:100]
+
+
+    async def _handle_pblock_command(self, event: MessageEvent) -> str:
+        """Handle /pblock - block/unblock user: /pblock <chat_id> [minutes]."""
+        denied = self._pa_guard(event)
+        if denied:
+            return denied
+        raw = (event.get_command_args() or "").strip()
+        if not raw:
+            blocked = self._pa_get_blocked()
+            if not blocked:
+                return "当前没有被禁用的用户"
+            lines = ["🚫 被禁用的用户:"]
+            for cid, until in blocked.items():
+                lines.append("• " + cid + " (到 " + until + ")")
+            return "\n".join(lines)
+        parts = raw.split()
+        chat_id = parts[0].strip()
+        if len(parts) == 1:
+            self._pa_unblock(chat_id)
+            return "✅ 已解禁 " + chat_id
+        try:
+            minutes = int(parts[1])
+        except ValueError:
+            minutes = 60
+        from datetime import datetime, timedelta
+        until = (datetime.now() + timedelta(minutes=minutes)).strftime("%H:%M")
+        self._pa_block(chat_id, until)
+        return "🚫 已禁用 " + chat_id + " " + str(minutes) + " 分钟 (到 " + until + ")"
+
+    def _pa_get_blocked(self) -> dict:
+        if not hasattr(self, "_blocked_users"):
+            self._blocked_users = {}
+        return self._blocked_users
+
+    def _pa_block(self, chat_id: str, until: str):
+        if not hasattr(self, "_blocked_users"):
+            self._blocked_users = {}
+        self._blocked_users[str(chat_id)] = until
+
+    def _pa_unblock(self, chat_id: str):
+        if hasattr(self, "_blocked_users"):
+            self._blocked_users.pop(str(chat_id), None)
 
     async def _handle_pfailover_command(self, event: MessageEvent) -> str:
         """Toggle auto-failover."""
@@ -1553,3 +2136,330 @@ class GatewayModelCommandsMixin:
         except Exception:
             return t("gateway.pedit.save_failed")
         return t("gateway.pedit.done", name=entry.get("name") or target_pid, field=saved)
+    # ----------------------------------------------------------------- soul
+    # Telegram prompt (soul) management commands.
+    # Backend logic lives in hermes_cli/soul_access.py; these handlers wire
+    # it to Telegram slash commands with password gates.
+
+    def _soul_hermes_home(self):
+        """Resolve HERMES_HOME directory. Never raises."""
+        try:
+            import os
+            from pathlib import Path
+            return Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
+        except Exception:
+            from pathlib import Path
+            return Path.home() / ".hermes"
+
+    def _soul_dir(self):
+        """Path to the souls/ directory. Never raises."""
+        try:
+            d = self._soul_hermes_home() / "souls"
+            return d
+        except Exception:
+            from pathlib import Path
+            return Path.home() / ".hermes" / "souls"
+
+    def _soul_password_prompt(self, event, next_step, data=None):
+        """Set pending password state and prompt for /ppass. Never raises."""
+        try:
+            self._pa_clear_pending(event.source)
+            state = {"step": "await_password", "next": next_step}
+            if data:
+                state.update(data)
+            self._pa_set_pending(event.source, state)
+            return "请输入密码：/ppass <密码>"
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("soul password prompt failed: %s", e)
+            return "操作失败，请重试。"
+
+    async def _handle_psoul_command(self, event: MessageEvent) -> Optional[str]:
+        """Handle /psoul — view current soul. No password needed."""
+        try:
+            args = (event.get_command_args() or "").strip()
+            if not args:
+                # Try inline submenu first
+                try:
+                    if await self._send_inline_submenu(event, "soul"):
+                        return None
+                except Exception:
+                    pass
+            # Fallback: show the prompt text
+            from hermes_cli import soul_access as sa
+            result = sa.read_soul()
+            if not result.get("ok"):
+                return "读取提示词失败。"
+            if not result.get("exists"):
+                return "当前没有设置提示词。"
+            content = result.get("content", "")
+            # Truncate if too long for Telegram
+            if len(content) > 3500:
+                content = content[:3500] + "\n\n...（内容过长已截断）"
+            return f"当前提示词：\n\n{content}"
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("psoul failed: %s", e)
+            return "读取提示词失败。"
+
+    async def _handle_psoulnew_command(self, event: MessageEvent) -> str:
+        """Handle /psoulnew <name> — create new soul. Requires password."""
+        try:
+            denied = self._pa_dm_only_guard(event)
+            if denied:
+                return denied
+            args = (event.get_command_args() or "").strip()
+            if not args:
+                return "用法：/psoulnew <名称>"
+            name = args.split()[0]
+            # Validate name (no path traversal)
+            import re
+            if not re.match(r'^[\w\-\u4e00-\u9fff]+$', name):
+                return "名称只能包含字母、数字、下划线、横线和中文。"
+            soul_dir = self._soul_dir()
+            target = soul_dir / f"{name}.md"
+            if target.exists():
+                return f"提示词「{name}」已存在。"
+            return self._soul_password_prompt(event, "soul_new", {"name": name})
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("psoulnew failed: %s", e)
+            return "创建提示词失败。"
+
+    async def _handle_psoullist_command(self, event: MessageEvent) -> Optional[str]:
+        """Handle /psoullist — list all souls. No password needed."""
+        try:
+            args = (event.get_command_args() or "").strip()
+            if not args:
+                try:
+                    if await self._send_inline_submenu(event, "soul_list"):
+                        return None
+                except Exception:
+                    pass
+            # Fallback: text list
+            soul_dir = self._soul_dir()
+            if not soul_dir.exists():
+                return "还没有保存的提示词。"
+            names = sorted([p.stem for p in soul_dir.glob("*.md")])
+            if not names:
+                return "还没有保存的提示词。"
+            # Check which is active by comparing with SOUL.md
+            try:
+                from hermes_cli import soul_access as sa
+                current = sa.read_soul().get("content", "")
+            except Exception:
+                current = ""
+            lines = ["已保存的提示词："]
+            for n in names:
+                try:
+                    text = (soul_dir / f"{n}.md").read_text(encoding="utf-8")
+                    mark = " ← 当前" if text == current and current else ""
+                except Exception:
+                    mark = ""
+                lines.append(f"  • {n}{mark}")
+            lines.append("\n切换：/psoulswitch <名称>")
+            return "\n".join(lines)
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("psoullist failed: %s", e)
+            return "列出提示词失败。"
+
+    async def _handle_psoulswitch_command(self, event: MessageEvent) -> str:
+        """Handle /psoulswitch <name> — switch soul. Requires password."""
+        try:
+            denied = self._pa_dm_only_guard(event)
+            if denied:
+                return denied
+            args = (event.get_command_args() or "").strip()
+            if not args:
+                return "用法：/psoulswitch <名称>"
+            name = args.split()[0]
+            soul_dir = self._soul_dir()
+            target = soul_dir / f"{name}.md"
+            if not target.exists():
+                return f"提示词「{name}」不存在。先用 /psoullist 查看。"
+            return self._soul_password_prompt(event, "soul_switch", {"name": name})
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("psoulswitch failed: %s", e)
+            return "切换提示词失败。"
+
+    async def _handle_psouldel_command(self, event: MessageEvent) -> str:
+        """Handle /psouldel <name> — delete soul. Requires password + confirm."""
+        try:
+            denied = self._pa_dm_only_guard(event)
+            if denied:
+                return denied
+            args = (event.get_command_args() or "").strip()
+            if not args:
+                return "用法：/psouldel <名称>"
+            name = args.split()[0]
+            soul_dir = self._soul_dir()
+            target = soul_dir / f"{name}.md"
+            if not target.exists():
+                return f"提示词「{name}」不存在。"
+            return self._soul_password_prompt(event, "soul_del", {"name": name})
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("psouldel failed: %s", e)
+            return "删除提示词失败。"
+
+    async def _handle_psouldelconfirm_command(self, event: MessageEvent) -> str:
+        """Confirm soul deletion."""
+        try:
+            pending = self._pa_get_pending(event.source)
+            if not pending or pending.get("step") != "await_soul_del_confirm":
+                return "没有待确认的删除操作。"
+            name = pending.get("name")
+            self._pa_clear_pending(event.source)
+            if not name:
+                return "删除失败：名称丢失。"
+            soul_dir = self._soul_dir()
+            target = soul_dir / f"{name}.md"
+            try:
+                target.unlink()
+                return f"已删除提示词「{name}」。"
+            except FileNotFoundError:
+                return f"提示词「{name}」不存在。"
+            except Exception:
+                return "删除失败。"
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("psouldelconfirm failed: %s", e)
+            return "删除失败。"
+
+    async def _handle_psoulset_command(self, event: MessageEvent) -> str:
+        """Handle /psoulset <content> — replace current soul. Requires password."""
+        try:
+            denied = self._pa_dm_only_guard(event)
+            if denied:
+                return denied
+            content = (event.get_command_args() or "").strip()
+            if not content:
+                return "用法：/psoulset <提示词内容>"
+            return self._soul_password_prompt(event, "soul_set", {"content": content})
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("psoulset failed: %s", e)
+            return "修改提示词失败。"
+
+    async def _handle_psouladd_command(self, event: MessageEvent) -> str:
+        """Handle /psouladd <content> — append to soul. Requires password."""
+        try:
+            denied = self._pa_dm_only_guard(event)
+            if denied:
+                return denied
+            content = (event.get_command_args() or "").strip()
+            if not content:
+                return "用法：/psouladd <追加的内容>"
+            return self._soul_password_prompt(event, "soul_add", {"content": content})
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("psouladd failed: %s", e)
+            return "追加提示词失败。"
+
+    # --- soul password-continuation handlers (called from _handle_ppass_command) ---
+
+    async def _pa_soul_new(self, event, pending, password) -> str:
+        """Create souls/{name}.md after password verified."""
+        try:
+            from hermes_cli import provider_access as pa
+            ok, reason = pa.verify_password(password)
+            if not ok:
+                if reason.startswith("locked:"):
+                    return f"密码错误次数过多，已锁定 {reason.split(':', 1)[1]} 秒。"
+                return "密码错误。"
+            name = pending.get("name")
+            if not name:
+                return "创建失败：名称丢失。"
+            soul_dir = self._soul_dir()
+            soul_dir.mkdir(parents=True, exist_ok=True)
+            target = soul_dir / f"{name}.md"
+            if target.exists():
+                return f"提示词「{name}」已存在。"
+            target.write_text("", encoding="utf-8")
+            return f"已创建提示词「{name}」，当前为空。用 /psoulset 修改内容。"
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("pa_soul_new failed: %s", e)
+            return "创建失败。"
+
+    async def _pa_soul_switch(self, event, pending, password) -> str:
+        """Copy souls/{name}.md to SOUL.md after password verified."""
+        try:
+            from hermes_cli import provider_access as pa
+            ok, reason = pa.verify_password(password)
+            if not ok:
+                if reason.startswith("locked:"):
+                    return f"密码错误次数过多，已锁定 {reason.split(':', 1)[1]} 秒。"
+                return "密码错误。"
+            name = pending.get("name")
+            if not name:
+                return "切换失败：名称丢失。"
+            soul_dir = self._soul_dir()
+            target = soul_dir / f"{name}.md"
+            if not target.exists():
+                return f"提示词「{name}」不存在。"
+            from hermes_cli import soul_access as sa
+            content = target.read_text(encoding="utf-8")
+            result = sa.set_soul(content, password)
+            if not result.get("ok"):
+                return "切换失败。"
+            return f"已切换到提示词「{name}」。"
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("pa_soul_switch failed: %s", e)
+            return "切换失败。"
+
+    async def _pa_soul_del(self, event, pending, password) -> str:
+        """Ask for delete confirmation after password verified."""
+        try:
+            from hermes_cli import provider_access as pa
+            ok, reason = pa.verify_password(password)
+            if not ok:
+                if reason.startswith("locked:"):
+                    return f"密码错误次数过多，已锁定 {reason.split(':', 1)[1]} 秒。"
+                return "密码错误。"
+            name = pending.get("name")
+            if not name:
+                return "删除失败：名称丢失。"
+            self._pa_set_pending(event.source, {"step": "await_soul_del_confirm", "name": name})
+            return f"确认删除提示词「{name}」？\n发送 /psouldelconfirm 确认，任意其他消息取消。"
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("pa_soul_del failed: %s", e)
+            return "删除失败。"
+
+    async def _pa_soul_set(self, event, pending, password) -> str:
+        """Replace SOUL.md after password verified."""
+        try:
+            from hermes_cli import soul_access as sa
+            content = pending.get("content", "")
+            result = sa.set_soul(content, password)
+            if not result.get("ok"):
+                err = result.get("error", "")
+                if "password" in str(err).lower() or "gate" in str(err).lower():
+                    return "密码错误。"
+                return "修改失败。"
+            return "提示词已更新。"
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("pa_soul_set failed: %s", e)
+            return "修改失败。"
+
+    async def _pa_soul_add(self, event, pending, password) -> str:
+        """Append to SOUL.md after password verified."""
+        try:
+            from hermes_cli import soul_access as sa
+            content = pending.get("content", "")
+            result = sa.append_soul(content, password)
+            if not result.get("ok"):
+                err = result.get("error", "")
+                if "password" in str(err).lower() or "gate" in str(err).lower():
+                    return "密码错误。"
+                return "追加失败。"
+            return "已追加到提示词。"
+        except Exception as e:
+            import logging
+            logging.getLogger("gateway.run").debug("pa_soul_add failed: %s", e)
+            return "追加失败。"

@@ -551,6 +551,28 @@ class TelegramAdapter(TelegramFileHandlingMixin, TelegramHeldInboundMixin, BaseP
     _TEXT_BATCH_SHORT_LEN = 1024
     _TEXT_BATCH_SHORT_DELAY_S = 0.24
 
+    # Inline submenu callbacks ("menu:<action>") → gateway command to execute.
+    # The submenu itself is defined in gateway/telegram_menu.py (SUBMENUS);
+    # tapping a button re-injects the mapped command as if the user typed it.
+    MENU_CALLBACK_COMMANDS = {
+        "provider_list": "/plist",
+        "provider_add": "/addprovider",
+        "provider_del": "/pdel",
+        "soul_view": "/psoul",
+        "soul_edit": "/psoulset",
+        "soul_append": "/psouladd",
+        "soul_clear": "/psouldel",
+        "soul_new": "/psoulnew",
+        "soul_list": "/psoullist",
+        "model_view": "/model",
+        "model_list": "/models",
+        "backup_now": "/pbackup",
+        "backup_list": "/pbackup list",
+        "backup_restore": "/pbackup list",
+        "gateway_status": "/pgateway status",
+        "gateway_restart": "/pgateway restart",
+    }
+
     @staticmethod
     def _env_float_clamped(name: str, default: float, *, min_value: Optional[float] = None, max_value: Optional[float] = None) -> float:
         """Read a float env var; non-finite → default; clamp to bounds (safe for asyncio.sleep)."""
@@ -4706,6 +4728,57 @@ class TelegramAdapter(TelegramFileHandlingMixin, TelegramHeldInboundMixin, BaseP
             if data.startswith(prefix):
                 await handler(query, data, cb)
                 return
+        # Inline submenu buttons ("menu:<action>") → re-inject mapped command.
+        if data.startswith("menu:"):
+            await self._handle_menu_callback(update, query, data, cb)
+            return
+
+    async def _handle_menu_callback(self, update, query, data: str, cb: dict[str, Any]) -> None:
+        """``menu:<action>`` — inline submenu button tap.
+
+        Maps the action through ``MENU_CALLBACK_COMMANDS`` and re-injects the
+        mapped gateway command as if the user typed it, so the normal command
+        pipeline (auth gates, handlers) applies unchanged.
+        Never raises: any failure just answers the callback quietly.
+        """
+        try:
+            action = data.split(":", 1)[1] if ":" in data else ""
+            command = self.MENU_CALLBACK_COMMANDS.get(action)
+            if not command:
+                try:
+                    await query.answer()
+                except Exception:
+                    pass
+                return
+            # Same auth gate as the pickers: only authorized users may drive menus.
+            if not await self._callback_authorized(query, cb, _unauthorized()):
+                return
+            try:
+                await query.answer()
+            except Exception:
+                pass
+            # Re-inject the command as a synthetic inbound message from the tapper.
+            msg = getattr(query, "message", None)
+            if msg is None:
+                return
+            # Temporarily swap the message text to the mapped command, build the
+            # event through the normal pipeline, then restore.
+            orig_text = getattr(msg, "text", None)
+            try:
+                msg.text = command
+                event = await self._build_triggered_event(msg, update, MessageType.COMMAND)
+            finally:
+                try:
+                    msg.text = orig_text
+                except Exception:
+                    pass
+            await self.handle_message(event)
+        except Exception as exc:
+            logger.debug("menu callback failed for data=%r: %s", data, exc)
+            try:
+                await query.answer()
+            except Exception:
+                pass
 
     async def _claim_callback_state(self, query, cb: dict[str, Any], state: dict, key, denial: str, resolved: str, *, pop: bool = True):
         """Auth-gate a button tap, then claim its pending entry; None (after answering) when refused or expired."""

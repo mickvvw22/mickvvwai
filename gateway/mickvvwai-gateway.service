@@ -1,0 +1,23 @@
+[Unit]
+Description=Mickvvwai Telegram Gateway (hermes gateway.run)
+Documentation=https://github.com/dududedaxiong/mickvvwai
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Environment=HOME=/home/ubuntu
+WorkingDirectory=/opt/mickvvwai-extracted/squashfs-root/resources/agent-payload/hermes-agent
+Environment=HERMES_SITE=/opt/mickvvwai-extracted/squashfs-root/resources/agent-payload/hermes-agent
+Environment=PYTHONPATH=/opt/mickvvwai-extracted/squashfs-root/resources/agent-payload/hermes-agent
+ExecStart=/opt/mickvvwai-extracted/squashfs-root/resources/agent-payload/hermes-agent/venv/bin/python -m gateway.run
+# 崩溃自动重启
+Restart=always
+RestartSec=10
+# 日志
+StandardOutput=append:/home/ubuntu/nohup.out
+StandardError=append:/home/ubuntu/nohup.out
+
+[Install]
+WantedBy=default.target
