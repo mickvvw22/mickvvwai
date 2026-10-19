@@ -57,7 +57,7 @@ def _load_config_scoped(profile: Optional[str]) -> dict:
 # provider probes, each with its own multi-second timeout, so an unreachable or
 # blackholed model.base_url can hold this response for tens of seconds — and the
 # Desktop Model Settings page waits on it (#63214).
-_MODEL_INFO_PROBE_BUDGET_S = 5.0
+_MODEL_INFO_PROBE_BUDGET_S = 25.0
 
 
 def _bounded_context_length_probe(model: str, base_url: str, provider: str) -> int:

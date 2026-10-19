@@ -817,14 +817,14 @@ def _next_timeout_cooldown(compressor: Any, counter: str = "_consecutive_timeout
 _MIN_SUMMARY_TOKENS = 2000
 _SUMMARY_RATIO = 0.20
 # Summaries above ~10K tokens are themselves a context-pressure source.
-_SUMMARY_TOKENS_CEILING = 10_000
+_SUMMARY_TOKENS_CEILING = 6_000
 
 # After this many failures at one cursor, skip the exchange to avoid busy-looping.
 _MICRO_COMPACT_MAX_CONSECUTIVE_FAILURES = 3
 
 # Prompt-side char cap on the serialized turn block (~40K tokens; head+tail kept,
 # see _bound_summary_input). NEVER add a max_tokens wire cap on the summary call.
-_SUMMARY_INPUT_MAX_CHARS = 160_000
+_SUMMARY_INPUT_MAX_CHARS = 70_000
 
 _PRUNED_TOOL_PLACEHOLDER = "[Old tool output cleared to save context space]"
 
@@ -4061,6 +4061,10 @@ Summary generation was unavailable, so this is a best-effort deterministic fallb
             "NEVER include API keys, tokens, passwords, secrets, credentials, or connection strings in the "
             "summary — replace any that appear with [REDACTED]. Note that credentials were present, but do "
             "not preserve their values."
+            + f" LENGTH LIMIT: the whole summary MUST fit in about {summary_budget} tokens. "
+              "Be terse: short bullets; keep concrete facts, file paths, exact values, decisions and the "
+              "user's latest unfulfilled input; compress narration and drop obsolete detail. A summary that "
+              "runs longer is DISCARDED as truncated, so staying short matters more than completeness."
         )
         # Lean mode folds the session log into this SAME single request (one aux call).
         _session_log_section = _LEAN_SESSION_LOG_SECTION if getattr(self, "tail_mode", "lean") == "lean" else ""
