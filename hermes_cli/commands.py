@@ -200,6 +200,14 @@ COMMAND_REGISTRY: list[CommandDef] = [
                args_hint="[name]", argument_mode="options"),
     CommandDef("addmodel", "Show how to add a model safely in Mickvvw settings", "Configuration",
                gateway_only=True),
+    CommandDef("addprovider", "Add a model provider from chat (password-gated)", "Configuration",
+               gateway_only=True, args_hint="[name|list|del <name>]"),
+    CommandDef("ppass", "Submit the provider-access password (auto-deleted)", "Configuration",
+               gateway_only=True, desktop="hidden"),
+    CommandDef("pkey", "提交供应商 API Key（自动删除、不回显）", "Configuration",
+               gateway_only=True, desktop="hidden"),
+    CommandDef("padd", "一站式添加自定义供应商：<名称> | <地址> | <key> | <模型>",
+               "Configuration", gateway_only=True, desktop="hidden"),
     CommandDef("statusbar", "Toggle the context/model status bar", "Configuration",
                cli_only=True, aliases=("sb",), desktop="terminal"),
     CommandDef("battery", "Toggle a color-coded battery indicator in the status bar",
@@ -351,7 +359,50 @@ COMMAND_REGISTRY: list[CommandDef] = [
 
     # Exit
     CommandDef("quit", "Exit the CLI (use --delete to also remove session history)", "Exit",
-               cli_only=True, aliases=("exit",), args_hint="[--delete]", desktop="terminal")]
+               cli_only=True, aliases=("exit",), args_hint="[--delete]", desktop="terminal"),
+
+    # ------------------------------------------------------ 本机自定义命令（mickvvw 构建自带）
+    # 这些是这套构建里的中文管理命令。处理函数早就写在
+    # gateway/slash_commands_model.py（命名约定 _handle_<name>_command），菜单也在
+    # gateway/telegram_menu.py 里定义好了，但**从未注册进 COMMAND_REGISTRY** ——
+    # 结果：Telegram 菜单里的按钮点了没反应（命令不被识别、不会被分发）。
+    # 2026-10-18 补上注册；注入 busy/idle 分发白名单见 gateway/run_busy.py::_PLAIN_COMMANDS。
+    CommandDef("psoul", "查看当前提示词（SOUL）", "Configuration", gateway_only=True),
+    CommandDef("psoullist", "列出所有提示词", "Configuration", gateway_only=True),
+    CommandDef("psoulnew", "新建提示词", "Configuration", gateway_only=True, args_hint="<name>"),
+    CommandDef("psoulswitch", "切换提示词", "Configuration", gateway_only=True, args_hint="<name>"),
+    CommandDef("psoulset", "替换当前提示词内容（需口令）", "Configuration", gateway_only=True, args_hint="<content>"),
+    CommandDef("psouladd", "追加内容到当前提示词（需口令）", "Configuration", gateway_only=True, args_hint="<content>"),
+    CommandDef("psouldel", "删除提示词（需口令 + 确认）", "Configuration", gateway_only=True, args_hint="<name>"),
+    CommandDef("psouldelconfirm", "确认删除提示词", "Configuration", gateway_only=True),
+    CommandDef("pmodels", "选择供应商下的模型", "Configuration", gateway_only=True, args_hint="[1,3,5|all]"),
+    CommandDef("paddforce", "对自动试通失败的模型做决定", "Configuration", gateway_only=True, args_hint="[yes|no|1,3]"),
+    CommandDef("ptest", "测试供应商连通性", "Configuration", gateway_only=True),
+    CommandDef("penable", "启用某个供应商", "Configuration", gateway_only=True),
+    CommandDef("pdisable", "停用某个供应商", "Configuration", gateway_only=True),
+    CommandDef("pdelconfirm", "确认删除供应商", "Configuration", gateway_only=True),
+    CommandDef("phealth", "检查所有供应商健康状态", "Configuration", gateway_only=True),
+    CommandDef("pfailover", "开关自动故障转移", "Configuration", gateway_only=True),
+    CommandDef("pedit", "编辑供应商字段（key/url/model/name）", "Configuration", gateway_only=True, args_hint="<field> <value>"),
+    CommandDef("pgateway", "网关自管理", "Configuration", gateway_only=True, args_hint="[status|restart]"),
+    CommandDef("pbackup", "一键备份到 WebDAV", "Configuration", gateway_only=True, args_hint="[list]"),
+    CommandDef("prestore", "从备份恢复", "Configuration", gateway_only=True, args_hint="<filename>"),
+    CommandDef("prestoreconfirm", "确认恢复备份", "Configuration", gateway_only=True),
+    CommandDef("psessions", "列出最近会话", "Configuration", gateway_only=True),
+    CommandDef("pusers", "在线人员管理（在线状态/禁言/专属提示词）", "Configuration", gateway_only=True),
+    CommandDef("pmembers", "成员管理菜单（在线/拉黑/下线/恢复）", "Configuration", gateway_only=True),
+    CommandDef("pblack", "拉黑成员（永久下线，需手动恢复）", "Configuration", gateway_only=True, args_hint="<序号> [原因]"),
+    CommandDef("punblock", "恢复被下线/拉黑的成员", "Configuration", gateway_only=True, args_hint="<序号|all>"),
+    CommandDef("psoulgive", "给某人绑定专属提示词", "Configuration", gateway_only=True, args_hint="<序号> <提示词名|off>"),
+    CommandDef("psend", "管理员向用户发消息", "Configuration", gateway_only=True, args_hint="<chat_id> <message>"),
+    CommandDef("pblock", "拉黑/解禁用户", "Configuration", gateway_only=True, args_hint="<chat_id> [minutes]"),
+    CommandDef("addadmin", "添加管理员", "Configuration", gateway_only=True, args_hint="<user_id>"),
+    CommandDef("removeadmin", "移除管理员", "Configuration", gateway_only=True, args_hint="<user_id>"),
+    CommandDef("listadmin", "列出管理员", "Configuration", gateway_only=True),
+    CommandDef("pguard", "补丁自愈守护：状态/一键开关/立刻检查", "Configuration", gateway_only=True, args_hint="[on|off|now|freeze]"),
+    CommandDef("pmenu", "常驻菜单收纳/展开（点一下收起，再点一下显示）", "Configuration",
+               gateway_only=True, args_hint="[on|off]"),
+    ]
 
 
 # Distinguishes ``mixed`` (subcommands plus free-text) from ``options``; no subcommands => ``text``.
