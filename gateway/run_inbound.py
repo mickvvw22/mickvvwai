@@ -149,6 +149,109 @@ class GatewayInboundMixin(GatewayPluginInjectionMixin):
         except Exception:
             logger.warning("Failed to deliver unauthorized-DM decline on %s", platform_name, exc_info=True)
 
+    def _user_soul_file(self, source) -> str:
+        """该用户专属提示词的文件路径（没绑定返回空串）。
+
+        2026-10-19：网关按会话/用户装配 agent 时用它 —— 每人一份 persona，
+        互不影响；没绑定的还是用全局 SOUL.md。
+        """
+        try:
+            from gateway import user_admin as ua
+
+            cid = str(getattr(source, "chat_id", "") or getattr(source, "user_id", "") or "")
+            p = ua.soul_file_for(cid) if cid else None
+            return str(p) if p else ""
+        except Exception:
+            return ""
+
+    def _is_explicit_admin(self, source) -> bool:
+        """是否**明确**列在管理员名单里（用于禁言豁免）。
+
+        为什么不用 ``policy.is_admin()``：gating 关闭时它对所有人都返回 True
+        （见 gateway/slash_access.py 的注释），拿它当豁免依据会让禁言静默失效；
+        家长控制必须 fail-closed —— 名单里没你就照常受限。
+        """
+        uid = str(getattr(source, "user_id", "") or "")
+        if not uid:
+            return False
+        try:
+            from gateway.slash_access import policy_for_runner_source
+
+            pol = policy_for_runner_source(self, source)
+            if getattr(pol, "enabled", False) and pol.is_admin(uid):
+                return True
+        except Exception:
+            pass
+        try:
+            import os as _os
+
+            import hermes_yaml as yaml
+            from pathlib import Path as _P
+
+            home = _os.environ.get("HERMES_HOME") or str(_P.home() / ".hermes")
+            cfg = yaml.safe_load(open(str(_P(home) / "config.yaml"))) or {}
+            plat = getattr(getattr(source, "platform", None), "value", None) or "telegram"
+            sc = (cfg.get("platforms") or {}).get(plat) or {}
+            admins = [str(x) for x in (list(sc.get("allow_admin_from") or [])
+                                       + list(sc.get("group_allow_admin_from") or []))]
+            return uid in admins
+        except Exception:
+            return False
+
+    async def _hm_blocked_user_gate(self, source: SessionSource) -> bool:
+        """禁言闸（2026-10-19）：被管理员临时禁用的用户 → 回一句说明并丢弃消息。
+
+        为什么放在授权检查之后：禁言是"已授权但被临时下线"，不是权限问题。
+        管理员永不被禁（避免把自己锁死）；通知按 5 分钟去重，避免刷屏。
+        """
+        try:
+            from gateway import user_admin as ua
+
+            cid = str(getattr(source, "chat_id", "") or getattr(source, "user_id", "") or "")
+            if not cid:
+                return False
+            if self._is_explicit_admin(source):
+                return False
+            st = ua.block_status(cid)
+            if not st:
+                return False
+            logger.info("Blocked user %s ignored (%.0f min left)", cid, st["remaining"] / 60)
+            await self._hm_notify_blocked_user(source, st)
+            return True
+        except Exception:
+            logger.debug("blocked-user gate failed", exc_info=True)
+            return False
+
+    async def _hm_notify_blocked_user(self, source: SessionSource, st: dict) -> None:
+        """告诉被禁言的用户：被禁了、还有多久（同一人 5 分钟最多一条）。"""
+        from gateway import user_admin as ua
+
+        cid = str(getattr(source, "chat_id", "") or "")
+        if not ua.claim_block_notice(cid):
+            return
+        adapter = self._delivery_adapter_for(source)
+        if not adapter:
+            return
+        import time as _t
+
+        until = _t.strftime("%m-%d %H:%M", _t.localtime(st["until"])) if st.get("until") else ""
+        # 2026-10-19：文案按用户要求改写（温和、告知下线原因与恢复时间）；
+        # 永久拉黑（拉黑成员）不再显示"预计上线时间"，改成等管理员解除。
+        if st.get("permanent"):
+            text = ("请注意休息 🌙\n"
+                    "你已被强制下线，暂时不能和 AI 对话，很抱歉！\n"
+                    "需要管理员解除后才能上线。")
+        else:
+            text = ("请注意休息 🌙\n"
+                    "你已被强制下线，暂时不能和 AI 对话，很抱歉！\n"
+                    f"预计 {until} 可以上线（还有 {ua.human_duration(st['remaining'])}）。")
+        if st.get("reason"):
+            text += f"\n（原因：{st['reason']}）"
+        try:
+            await adapter.send(source.chat_id, text)
+        except Exception:
+            logger.warning("Failed to notify blocked user %s", cid, exc_info=True)
+
     async def _hm_report_ignored_dm(self, source: SessionSource) -> None:
         """Unauthorized DM under behaviour ``ignore``: nothing goes to the sender. The owner gets the
         sender's ID and the allowlist fix in the WARNING log and, once per sender, in the home channel."""
@@ -255,6 +358,20 @@ class GatewayInboundMixin(GatewayPluginInjectionMixin):
             else:
                 logger.warning("Unauthorized user: %s (%s) on %s", source.user_id, source.user_name, source.platform.value)
             return None
+
+        # 2026-10-19：记下见过的用户（/pusers 靠它显示名字）
+        try:
+            from gateway import user_admin as _ua
+            _ua.remember_user(source.chat_id,
+                              getattr(source, "user_name", "") or "",
+                              getattr(getattr(source, "platform", None), "value", "") or "")
+        except Exception:
+            pass
+
+        # 2026-10-19：禁言闸 —— 已授权但被管理员临时"下线"的用户在这里被拦下
+        if await self._hm_blocked_user_gate(source):
+            return None
+
         # The busy path charged this event on arrival; a drained follow-up must not pay twice.
         if not getattr(event, "_bot_loop_admitted", False) and not self._admit_bot_message_for_source(source):
             return None
@@ -815,6 +932,25 @@ class GatewayInboundMixin(GatewayPluginInjectionMixin):
         canonical)``; when ``handled`` the caller returns ``result`` as-is (may be None)."""
         from hermes_cli.commands import is_gateway_known_command, resolve_command as _resolve_cmd
 
+        # 2026-10-18：底部常驻按钮（reply keyboard）标签文本 → 对应命令。
+        # 为什么放在这里、而不是只依赖 Telegram 适配器里那份改写：适配器要自己构造一个
+        # COMMAND 事件再入队，环节多、不好验证；这里是从**普通文本事件**改写文本，紧接着
+        # 就走用户手打命令的同一段代码（那条路已验证可用），所以最稳。适配器那份保留，
+        # 先命中者生效，不会重复执行。
+        if not event.get_command():
+            try:
+                from gateway.telegram_menu import command_for_button_text
+                _btn_cmd = command_for_button_text(getattr(event, "text", "") or "")
+            except Exception:
+                _btn_cmd = None
+            if _btn_cmd:
+                logger.info("底部按钮 %r → 命令 %s（runner 侧改写）", event.text, _btn_cmd)
+                event.text = _btn_cmd
+                try:
+                    event.message_type = MessageType.COMMAND
+                except Exception:
+                    pass
+
         def _canon(cmd):
             # Aliases resolve to the canonical name so dispatch and hook names don't depend on them.
             _def = _resolve_cmd(cmd) if cmd else None
@@ -1306,6 +1442,27 @@ class GatewayInboundMixin(GatewayPluginInjectionMixin):
         if _paused_notice is not None:
             return _paused_notice
 
+        # 自然语言添加供应商意图识别
+        try:
+            _t=(event.text or "").strip()
+            if _t and not _t.startswith("/") and not is_internal:
+                _l=_t.lower()
+                if "添加供应商" in _t or "add provider" in _l:
+                    return "请按格式发送:"+chr(10)+"/padd 名称|base_url|key|模型1,模型2(可选)"
+        except Exception:
+            pass
+        # 无供应商时主动引导接入
+        try:
+            _t2=(event.text or "").strip()
+            if _t2 and not _t2.startswith("/") and not is_internal:
+                from hermes_cli.config import load_config as _load_cfg
+                _cfg = _load_cfg() or {}
+                _providers = _cfg.get("providers") or {}
+                _has_provider = any(isinstance(v, dict) for v in _providers.values())
+                if not _has_provider:
+                    return "尚未接入任何 AI 供应商，先添加一个才能聊天："+chr(10)+"/padd 名称|base_url|key|模型1,模型2(可选)"+chr(10)+"例如：/padd 我的供应商|https://api.example.com|sk-xxx|gpt-4,gpt-4o"
+        except Exception:
+            pass
         _quick_key = self._session_key_for_source(source)
         _reply = await self._hm_pending_reply_intercepts(event, source, _quick_key)
         if _reply is not None:
