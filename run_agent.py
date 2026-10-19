@@ -266,6 +266,8 @@ class AIAgent(
         chat_id: str | None = None, chat_name: str | None = None, chat_type: str | None = None, thread_id: str | None = None,
         gateway_session_key: str | None = None,
         skip_context_files: bool = False, load_soul_identity: bool = False,
+        # 2026-10-19：每人专属提示词（souls/<名字>.md 的路径）；None → 回落全局 SOUL.md
+        soul_file: str | None = None,
         skip_memory: bool = False, skip_background_review: bool = False,
         session_db=None, parent_session_id: str | None = None,
         iteration_budget: IterationBudget = None, run_budget_seconds: Optional[float] = None,

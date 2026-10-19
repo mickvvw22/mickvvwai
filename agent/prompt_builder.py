@@ -1651,7 +1651,8 @@ def _omitted_headings(content: str, start: int, end: int, limit: int = 15) -> li
     return headings[:limit] + (["..."] if len(headings) > limit else [])
 
 
-def load_soul_md(context_length: Optional[int] = None, home_override: Path | None = None) -> Optional[str]:
+def load_soul_md(context_length: Optional[int] = None, home_override: Path | None = None,
+                 soul_file: str | Path | None = None) -> Optional[str]:
     """SOUL.md from HERMES_HOME (identity slot #1), or None.
 
     Callers must pass ``skip_soul=True`` to ``build_context_files_prompt`` so it isn't injected twice.
@@ -1668,6 +1669,14 @@ def load_soul_md(context_length: Optional[int] = None, home_override: Path | Non
     except Exception as e:
         logger.debug("Could not ensure HERMES_HOME before loading SOUL.md: %s", e)
     soul_path = (Path(home_override) if home_override is not None else get_hermes_home()) / "SOUL.md"
+    # 2026-10-19：每人专属提示词 —— 传了 soul_file 且文件存在就用它，否则回落到全局 SOUL.md
+    if soul_file:
+        try:
+            _override = Path(soul_file)
+            if _override.exists() and _override.is_file():
+                soul_path = _override
+        except Exception:
+            pass
     if not soul_path.exists():
         return None
     try:

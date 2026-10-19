@@ -2358,7 +2358,9 @@ def _try_nous(vision: bool = False) -> tuple[Optional[OpenAI], Optional[str]]:
     nous = _read_nous_auth()
     runtime = _resolve_nous_runtime_api(force_refresh=False)
     if runtime is None and not nous:
-        logger.warning("Auxiliary Nous client unavailable: no Nous authentication found (run: hermes auth).")
+        # 2026-10-19：没配 Nous 是常态（本机用自定义中转站），原来按 WARNING 每次都刷屏
+        # （日志里累计 24 次）。这是"配置项没设"，不是错误 → 降到 DEBUG，需要时再开 debug 看。
+        logger.debug("Auxiliary Nous client unavailable: no Nous authentication found (run: hermes auth).")
         _mark_provider_unhealthy("nous", ttl=60, reason="no Nous authentication found", level=logging.DEBUG)
         return None, None
     if runtime is None and nous:
@@ -2368,7 +2370,7 @@ def _try_nous(vision: bool = False) -> tuple[Optional[OpenAI], Optional[str]]:
     else:
         api_key = _nous_api_key(nous or {})
         if not api_key:
-            logger.warning(
+            logger.debug(
                 "Auxiliary Nous client unavailable: no usable inference JWT found "
                 "(run: hermes auth add nous)."
             )

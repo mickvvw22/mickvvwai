@@ -258,7 +258,15 @@ def record_nous_credential_failure(exc: BaseException) -> str:
         first_time = detail not in _warned_nous_details
         _warned_nous_details.add(detail)
     if first_time:
-        level = logging.WARNING if _nous_credential_present(exc) else logging.DEBUG
+        # 2026-10-19：本机没配 Nous（用自定义中转站）时这条曾按 WARNING 刷屏。
+        # 判定收紧：只有**确实存在 Nous 凭证状态**时才 WARNING（真正的“凭证坏了”信号），
+        # 完全没配置的机器降到 DEBUG（“没配置”不是错误，不该告警）。
+        has_state = False
+        with contextlib.suppress(Exception):
+            from hermes_cli.auth import get_provider_auth_state
+
+            has_state = bool(get_provider_auth_state("nous"))
+        level = logging.WARNING if (has_state and _nous_credential_present(exc)) else logging.DEBUG
         logger.log(level, "Auxiliary Nous client unavailable: %s", detail)
     return detail
 
