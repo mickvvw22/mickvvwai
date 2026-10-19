@@ -1,0 +1,9 @@
+name: openaicompat
+version: 1.0.0
+description: >
+  通用视频生成后端：任何实现 OpenAI 视频 API 形状的服务
+  （POST /videos → GET /videos/{id} → GET /videos/{id}/content）。
+  换站只需改 video_gen.base_url / endpoint / key_env；分辨率与时长由上游报错自动适配，
+  模型目录从 /v1/models 实时发现（可按特征过滤），也可用 video_gen.models 手动钉死。
+author: mickvvw 本地
+kind: backend

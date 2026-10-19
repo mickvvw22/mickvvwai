@@ -1,0 +1,4 @@
+name: backup-access
+version: 1.0.0
+description: "One-click backup/restore of hermes config (providers, SOUL.md, souls/) to WebDAV, guarded by the shared provider-access password gate."
+author: "Mickvvw"

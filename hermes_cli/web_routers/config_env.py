@@ -458,6 +458,7 @@ def _endpoint_row(
         "context_length": context_length, "discover_models": discover_models,
         "has_api_key": has_api_key, "api_key_preview": api_key_preview,
         "is_current": is_current, "source": source,
+        "added_via": key_entry.get("added_via") if isinstance(key_entry, dict) else None,
     }
 
 
@@ -597,6 +598,15 @@ def _write_custom_endpoint(cfg: dict[str, Any], body: CustomEndpointUpdate) -> t
     # An edit payload carries the stored key verbatim; slugging it first would
     # miss the entry and fork a slugged twin next to the original.
     stored_key, existing = _resolve_custom_endpoint_entry(providers, body.id or body.name)
+    # 以 base_url 为准判重：名称仅作显示，不参与判重
+    if existing is None:
+        norm_url = base_url.strip().rstrip("/").lower()
+        for k, v in providers.items():
+            if isinstance(v, dict):
+                v_url = str(v.get("base_url", "")).strip().rstrip("/").lower()
+                if v_url and v_url == norm_url:
+                    stored_key, existing = k, v
+                    break
     endpoint_id = coerce_provider_id(stored_key) if existing is not None else _custom_endpoint_id(body.id or body.name)
     if existing is None:
         # Settings saves the row the list rendered. A legacy custom_providers
@@ -847,6 +857,23 @@ def delete_custom_endpoint(endpoint_id: str, profile: Optional[str] = None):
             response = _custom_endpoint_response(cfg)
         response["ok"] = True
         return response
+
+
+@router.post("/api/providers/access-password")
+def set_provider_access_password(body: dict[str, Any]):
+    """Change the provider-access password. Both values travel the local loopback
+    API only; the new one is hashed (SHA-256) before persistence, never stored
+    raw. The old password must verify first."""
+    from hermes_cli import provider_access as pa
+
+    try:
+        pa.set_password(
+            (body or {}).get("old_password") or "",
+            (body or {}).get("password") or "",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"ok": True}
 
 
 @router.post("/api/providers/custom-endpoints/validate")
