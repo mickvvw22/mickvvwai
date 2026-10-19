@@ -551,6 +551,38 @@ class TelegramAdapter(TelegramFileHandlingMixin, TelegramHeldInboundMixin, BaseP
     _TEXT_BATCH_SHORT_LEN = 1024
     _TEXT_BATCH_SHORT_DELAY_S = 0.24
 
+    # Inline submenu callbacks ("menu:<action>") → gateway command to execute.
+    # The submenu itself is defined in gateway/telegram_menu.py (SUBMENUS);
+    # tapping a button re-injects the mapped command as if the user typed it.
+    MENU_CALLBACK_COMMANDS = {
+        # 2026-10-18：恢复「母菜单 → 子菜单」两层结构，同时让每个子菜单按钮**真正干活**。
+        # 死循环的根因是子菜单按钮把父命令又执行一遍（查看提示词→/psoul→又弹菜单）。
+        # 现在子菜单按钮一律带子命令（view / list / now / restart / status），与弹菜单的
+        # 无参数调用区分开。
+        "provider_list": "/addprovider list",
+        "provider_add": "/addprovider new",   # 2026-10-19：直接进入「选/填供应商」流程，不再弹回本子菜单
+        "provider_del": "/addprovider del",
+        "soul_view": "/psoul view",      # 看正文，不再弹菜单
+        "soul_edit": "/psoulset",
+        "soul_append": "/psouladd",
+        "soul_clear": "/psouldel",
+        "soul_new": "/psoulnew ask",      # 2026-10-19：出「怎么新建」指引，不再弹回本子菜单
+        "soul_list": "/psoullist list",  # 列列表，不再弹菜单
+        "model_view": "/model",          # 模型选择器（供应商 → 模型）
+        "model_list": "/pmodels",
+        "model_reasoning": "/reasoning",  # 2026-10-19：推理强度（框架自带一键选择器）
+        "backup_now": "/pbackup now",    # 真备份，不再弹菜单
+        "backup_list": "/pbackup list",
+        "backup_restore": "/prestore",
+        "gateway_status": "/pgateway status",
+        "gateway_restart": "/pgateway restart",
+        # 2026-10-19：成员管理子菜单（底部常驻第 8 个按钮）
+        "members_online": "/pusers",       # 最近在线成员
+        "members_black": "/pblack",        # 拉黑成员（永久）
+        "members_block": "/pblock",        # 下线成员（限时，点一下默认 60 分钟）
+        "members_restore": "/punblock",    # 恢复成员
+    }
+
     @staticmethod
     def _env_float_clamped(name: str, default: float, *, min_value: Optional[float] = None, max_value: Optional[float] = None) -> float:
         """Read a float env var; non-finite → default; clamp to bounds (safe for asyncio.sleep)."""
@@ -4432,11 +4464,21 @@ class TelegramAdapter(TelegramFileHandlingMixin, TelegramHeldInboundMixin, BaseP
         """Build paginated model buttons. Returns (keyboard, page_info_text)."""
         page_models, page_meta = self._format_choice_page(models, page, self._MODEL_PAGE_SIZE)
         start = page_meta["start"]
+        # 2026-10-19：非对话模型（视频/图像/音频/向量）在按钮上打标 —— 它们和聊天模型混在同一个
+        # /v1/models 列表里，误选会把会话卡一两分钟。**只加标记、不改顺序**（顺序决定 callback 下标）。
+        try:
+            from hermes_cli.model_selection_guards import non_chat_model_marker
+        except Exception:
+            def non_chat_model_marker(_model_id: str) -> str:  # 兜底：模块不可用时静默不打标
+                return ""
         buttons: list = []
         for i, model_id in enumerate(page_models):
             short = model_id.split("/")[-1] if "/" in model_id else model_id
             if len(short) > 38:
                 short = short[:35] + "..."
+            marker = non_chat_model_marker(model_id)
+            if marker:
+                short = f"{marker} {short}"
             buttons.append(InlineKeyboardButton(short, callback_data=f"mm:{start + i}"))
         return self._paged_keyboard(buttons, page_meta, "mg", self._picker_back_cancel_row())
 
@@ -4706,6 +4748,82 @@ class TelegramAdapter(TelegramFileHandlingMixin, TelegramHeldInboundMixin, BaseP
             if data.startswith(prefix):
                 await handler(query, data, cb)
                 return
+        # Inline submenu buttons ("menu:<action>") → re-inject mapped command.
+        if data.startswith("menu:"):
+            await self._handle_menu_callback(update, query, data, cb)
+            return
+
+    async def _handle_menu_callback(self, update, query, data: str, cb: dict[str, Any]) -> None:
+        """``menu:<action>`` — inline submenu button tap.
+
+        Maps the action through ``MENU_CALLBACK_COMMANDS`` and re-injects the
+        mapped gateway command as if the user typed it, so the normal command
+        pipeline (auth gates, handlers) applies unchanged.
+        Never raises: any failure just answers the callback quietly.
+        """
+        try:
+            action = data.split(":", 1)[1] if ":" in data else ""
+            command = self.MENU_CALLBACK_COMMANDS.get(action)
+            if not command:
+                logger.warning("[Telegram] 子菜单回调 %r 没有映射到命令（菜单定义与映射表不同步）", data)
+                try:
+                    await query.answer()
+                except Exception:
+                    pass
+                return
+            logger.info("[Telegram] 子菜单按钮 %r → 命令 %s", action, command)
+            # Same auth gate as the pickers: only authorized users may drive menus.
+            if not await self._callback_authorized(query, cb, _unauthorized()):
+                logger.warning("[Telegram] 子菜单按钮 %r 被授权门禁拒绝（user=%s chat=%s）",
+                               action, getattr(query.from_user, "id", "?"), cb.get("chat_id"))
+                return
+            try:
+                await query.answer()
+            except Exception:
+                pass
+            # Re-inject the command as a synthetic inbound message from the tapper.
+            msg = getattr(query, "message", None)
+            if msg is None:
+                return
+            # ⚠️ 不能改 msg.text（PTB 的 Message 不可赋值，会抛 AttributeError 并被吞掉）
+            # —— 这是「点 inline 按钮没反应」的同一个根因。改成在事件上重写。
+            event = await self._build_triggered_event(msg, update, MessageType.COMMAND)
+            event.text = command
+            # ⚠️ 身份必须换成「点按钮的人」：回调消息的 from_user 是**机器人自己**
+            # （消息是 bot 发的），照搬会让注入的命令被授权检查拒收。日志实证：
+            #   INFO 子菜单按钮 'soul_view' → 命令 /psoul view
+            #   WARNING Unauthorized user: 8981291723 (mickvvwai) on telegram   ← 就是 bot 自己的 id
+            # 结果：按钮点了完全没反应。这里用 query.from_user 覆盖身份。
+            tapper = getattr(query, "from_user", None)
+            source = getattr(event, "source", None)
+            if tapper is not None and source is not None:
+                tapper_id = str(getattr(tapper, "id", "") or "")
+                if tapper_id:
+                    for obj, attr in ((source, "user_id"), (event, "user_id")):
+                        try:
+                            setattr(obj, attr, tapper_id)
+                        except Exception:
+                            pass
+                tapper_name = (getattr(tapper, "full_name", None)
+                               or getattr(tapper, "first_name", None))
+                if tapper_name:
+                    try:
+                        source.user_name = str(tapper_name)
+                    except Exception:
+                        pass
+                for attr in ("is_bot", "from_bot"):
+                    if hasattr(source, attr):
+                        try:
+                            setattr(source, attr, False)
+                        except Exception:
+                            pass
+            await self.handle_message(event)
+        except Exception as exc:
+            logger.debug("menu callback failed for data=%r: %s", data, exc)
+            try:
+                await query.answer()
+            except Exception:
+                pass
 
     async def _claim_callback_state(self, query, cb: dict[str, Any], state: dict, key, denial: str, resolved: str, *, pop: bool = True):
         """Auth-gate a button tap, then claim its pending entry; None (after answering) when refused or expired."""
@@ -6472,6 +6590,28 @@ class TelegramAdapter(TelegramFileHandlingMixin, TelegramHeldInboundMixin, BaseP
         # Auth check first: blocked users must not reach batching, the observed transcript, or the agent.
         if not self._is_user_authorized_from_message(msg):
             self._log_blocked_user(msg)
+            return
+        # 2026-10-18：底部常驻按钮（reply keyboard）按下时，Telegram 只把按钮文字当普通消息发上来，
+        # 不会触发 callback。这里按 telegram_menu.MENU_BUTTON_COMMANDS 改写成对应命令（等同用户手打），
+        # 否则「📝提示词管理」这类按钮会变成一条聊天内容丢给模型。
+        _btn_cmd = None
+        try:
+            from gateway.telegram_menu import command_for_button_text
+            _btn_cmd = command_for_button_text(msg.text)
+        except Exception as _exc:
+            logger.debug("[Telegram] menu button lookup failed: %s", _exc)
+        if _btn_cmd:
+            logger.info("[Telegram] 底部按钮 %r → 命令 %s（改写成 COMMAND 事件后重新入队）", msg.text, _btn_cmd)
+            if not self._gate_or_observe(msg, update, MessageType.COMMAND):
+                logger.warning("[Telegram] 底部按钮 %r 被 group/own-message 等门禁拦下", msg.text)
+                return
+            # ⚠️ 绝不改 msg.text：PTB 的 Message 是 slots 对象，赋值会抛
+            # AttributeError: Attribute `text` of class `Message` can't be set!
+            # —— 这正是「按钮点了没反应」的根因（异常被 PTB 吞掉，消息不进管线）。
+            # 改成在 MessageEvent 上重写文本与类型。
+            event = await self._build_triggered_event(msg, update, MessageType.COMMAND)
+            event.text = _btn_cmd
+            await self.handle_message(event)
             return
         if not self._gate_or_observe(msg, update, MessageType.TEXT):
             return

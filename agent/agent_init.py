@@ -2331,6 +2331,8 @@ _PASSTHROUGH_PARAMS = (
     "model", "max_iterations", "save_trajectories", "verbose_logging", "quiet_mode",
     "tool_progress_mode", "ephemeral_system_prompt", "platform", "skip_context_files",
     "load_soul_identity", "pass_session_id", "log_prefix_chars",
+    # 2026-10-19：每人专属提示词（souls/<名字>.md 的路径）；None → 用全局 SOUL.md
+    "soul_file",
     # OpenRouter provider preferences
     "providers_allowed", "providers_ignored", "providers_order", "provider_sort",
     "provider_require_parameters", "provider_data_collection", "openrouter_min_coding_score",
@@ -2387,6 +2389,7 @@ def init_agent(
     chat_id: str | None = None, chat_name: str | None = None, chat_type: str | None = None, thread_id: str | None = None,
     gateway_session_key: str | None = None, skip_context_files: bool = False,
     load_soul_identity: bool = False, skip_memory: bool = False,
+    soul_file: str | None = None,
     skip_background_review: bool = False, session_db=None, parent_session_id: str | None = None,
     iteration_budget: IterationBudget = None, run_budget_seconds: Optional[float] = None,
     fallback_model: dict[str, Any] | None = None, credential_pool=None, checkpoints_enabled: bool = False,

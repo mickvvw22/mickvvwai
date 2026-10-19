@@ -1,0 +1,4 @@
+name: provider-access
+version: 1.0.0
+description: "Add, list, update or delete model providers from AI chat, guarded by the shared provider-access password gate."
+author: "Mickvvw"

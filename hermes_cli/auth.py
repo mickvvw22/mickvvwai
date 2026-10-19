@@ -1590,6 +1590,21 @@ def _config_model_provider() -> tuple[Any, Optional[str]]:
             from hermes_cli.runtime_provider import _config_base_url_trustworthy_for_bare_custom
             if _config_base_url_trustworthy_for_bare_custom(base_url, provider):
                 return model_cfg, "custom"
+        # Custom provider via top-level default, e.g. default custom:test/auto
+        try:
+            _ca = load_config() or {}
+            _dm = _ca.get("default")
+            if not _dm and isinstance(model_cfg, dict):
+                _dm = model_cfg.get("default")
+            if isinstance(_dm, str):
+                _dn = _dm.strip().lower()
+                if _dn.startswith("custom:"):
+                    _cid = _dn.split("/")[0]
+                    from hermes_cli.models import _configured_custom_provider_ids
+                    if _cid in _configured_custom_provider_ids():
+                        return model_cfg, _cid
+        except Exception:
+            pass
         return model_cfg, None
     except Exception as e:
         logger.debug("Could not read config.yaml model.provider for auto-resolution: %s", e)
@@ -1652,6 +1667,14 @@ def resolve_provider(
 
     if normalized in ("openrouter", "custom") or _registry_lookup(normalized) is not None:
         return normalized
+    # Custom providers from config.yaml providers: section (e.g. custom:test)
+    if normalized.startswith("custom:"):
+        try:
+            from hermes_cli.models import _configured_custom_provider_ids
+            if normalized in _configured_custom_provider_ids():
+                return normalized
+        except Exception:
+            pass
     if normalized != "auto":
         hint = _get_config_hint_for_unknown_provider(normalized)
         tail = (f"\n\n{hint}" if hint else " Check 'hermes model' for available providers, "

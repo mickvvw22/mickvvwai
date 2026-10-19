@@ -91,12 +91,25 @@ class GatewayConfigLoadersMixin:
 
     @staticmethod
     def _load_ephemeral_system_prompt() -> str:
-        """HERMES_EPHEMERAL_SYSTEM_PROMPT env first, then ``display.personality`` / ``agent.system_prompt``."""
+        """``HERMES_EPHEMERAL_SYSTEM_PROMPT`` env first, then ``display.personality`` / ``agent.system_prompt``. Reply-language directive from config.reply_language is prepended."""
         from gateway.run import _load_gateway_config
+        cfg = _load_gateway_config()
+        _lang = (getattr(cfg, "reply_language", "zh-CN") or "zh-CN").strip().lower().replace("_", "-")
+        _directives = {
+            "zh-cn": "\u8bf7\u59cb\u7ec8\u7528\u7b80\u4f53\u4e2d\u6587\u56de\u590d\u7528\u6237\u3002",
+            "zh": "\u8bf7\u59cb\u7ec8\u7528\u7b80\u4f53\u4e2d\u6587\u56de\u590d\u7528\u6237\u3002",
+            "zh-tw": "\u8acb\u59cb\u7d42\u7528\u7e41\u9ad4\u4e2d\u6587\u56de\u8986\u7528\u6236\u3002",
+            "zh-hk": "\u8acb\u59cb\u7d42\u7528\u7e41\u9ad4\u4e2d\u6587\u56de\u8986\u7528\u6236\u3002",
+        }
+        _directive = _directives.get(_lang, "")
+        if not _directive and _lang.startswith("en"):
+            _directive = "Always respond in English."
         prompt = os.getenv("HERMES_EPHEMERAL_SYSTEM_PROMPT", "")
-        if prompt:
-            return prompt
-        return resolve_ephemeral_system_prompt_from_config(_load_gateway_config())
+        base = prompt if prompt else resolve_ephemeral_system_prompt_from_config(cfg)
+        if _directive and base and not base.startswith(_directive):
+            return _directive + "\n" + base
+        return base or _directive
+
 
     def _channel_override(self, platform: Platform, chat_id: str, thread_id, parent_id):
         """``channel_overrides`` entry for this channel/thread, or None (also when no config is bound)."""

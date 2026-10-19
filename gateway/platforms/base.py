@@ -3399,16 +3399,26 @@ class BasePlatformAdapter(ABC):
         return list(unique), re.sub(r'\n{3,}', '\n\n', cleaned).strip()
 
     async def _keep_typing(self, chat_id: str, interval: float = 2.0, metadata=None,
-                           stop_event: asyncio.Event | None = None) -> None:
+                           stop_event: asyncio.Event | None = None, max_duration: float | None = None) -> None:
         """Refresh the typing indicator every ``interval`` seconds until cancelled (platform typing
         state expires after ~5s). Chats in ``_typing_paused`` are skipped (approval waits — Slack's
         setStatus disables the compose box). Each ``send_typing`` is bounded by a sub-interval
         timeout so one slow round-trip is abandoned before the next tick, not the bubble lapsing."""
         _send_typing_timeout = max(0.25, min(1.5, interval - 0.25))
         try:
+            _typing_start = asyncio.get_running_loop().time()
+            _timeout_notified = False
             while True:
                 if stop_event is not None and stop_event.is_set():
                     return
+                if max_duration is not None and not _timeout_notified:
+                    if asyncio.get_running_loop().time() - _typing_start >= max_duration:
+                        _timeout_notified = True
+                        try:
+                            await self._send_timeout_notice(chat_id, metadata)
+                        except Exception:
+                            pass
+                        return
                 if chat_id not in self._typing_paused:
                     try:
                         await asyncio.wait_for(self.send_typing(chat_id, metadata=metadata),
@@ -3455,6 +3465,13 @@ class BasePlatformAdapter(ABC):
                 await self._stop_typing_quietly(chat_id, metadata)
         finally:
             self._typing_paused.discard(chat_id)
+
+    async def _send_timeout_notice(self, chat_id: str, metadata=None) -> None:
+        """Best-effort timeout notice after typing refresh gave up; never raises."""
+        try:
+            await self.send(chat_id, "\u5904\u7406\u65f6\u95f4\u8f83\u957f\uff0c\u4ecd\u5728\u7ee7\u7eed\u5904\u7406\u4e2d\uff0c\u8bf7\u7a0d\u5019\u2026\u2026")
+        except Exception:
+            pass
 
     async def _stop_typing_quietly(self, chat_id: str, metadata=None) -> None:
         """Best-effort platform stop_typing; adapter errors are swallowed."""
@@ -4471,6 +4488,8 @@ class BasePlatformAdapter(ABC):
         kwargs: dict[str, Any] = {"metadata": metadata}
         if self._accepts_kwarg(self._keep_typing, "stop_event", var_kw=False, unknown=True):
             kwargs["stop_event"] = interrupt_event
+        if self._accepts_kwarg(self._keep_typing, "max_duration", var_kw=False, unknown=True):
+            kwargs["max_duration"] = float(getattr(self.config, "typing_timeout", 180) or 180)
         return asyncio.create_task(self._keep_typing(event.source.chat_id, **kwargs))
 
     async def _extract_response_content(self, response: str, event: MessageEvent, session_key: str,

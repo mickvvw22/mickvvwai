@@ -1134,6 +1134,8 @@ class TurnRunner:
             skip_context_files=skip_context_files,
             # Keep the persona even with minimal context: soul identity is one small file.
             load_soul_identity=True,
+            # 2026-10-19：每人专属提示词（未绑定 → 空串 → 回落全局 SOUL.md）
+            soul_file=runner._user_soul_file(src),
         )
 
     def _resolve_turn_agent(self, turn_route, platform_key, combined_ephemeral, max_iterations, reasoning_config, pr):

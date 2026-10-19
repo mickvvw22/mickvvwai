@@ -496,6 +496,19 @@ def resolve_requested_provider(requested: Optional[str] = None) -> str:
     cfg_provider = _get_model_config().get("provider")
     if isinstance(cfg_provider, str) and cfg_provider.strip():
         return cfg_provider.strip().lower()
+    # Top-level default model (e.g. default custom:test/auto) names the provider.
+    try:
+        from hermes_cli.config import load_config
+        _dm = (load_config() or {}).get("default") or ""
+        if isinstance(_dm, str):
+            _dn = _dm.strip().lower()
+            if _dn.startswith("custom:"):
+                _cid = _dn.split("/")[0]
+                from hermes_cli.models import _configured_custom_provider_ids
+                if _cid in _configured_custom_provider_ids():
+                    return _cid
+    except Exception:
+        pass
     return get_secret_str("HERMES_INFERENCE_PROVIDER", "").strip().lower() or "auto"
 
 
@@ -1116,11 +1129,26 @@ def resolve_runtime_with_fallback(config: Optional[dict[str, Any]], *, requested
     re-raised: a fallback entry's failure is not what the operator configured first (#81209). The entry's
     ``model`` is the model the caller must send.
     """
+    # Extract target_model from top-level default, e.g. custom:test/auto
+    if not target_model:
+        try:
+            cfg_default = (config or {}).get("default")
+            if isinstance(cfg_default, str) and cfg_default.strip():
+                dflt = cfg_default.strip()
+                if "/" in dflt:
+                    target_model = dflt.split("/", 1)[1].strip() or None
+                else:
+                    target_model = dflt or None
+        except Exception:
+            pass
     from hermes_cli.auth import AuthError, primary_failure_wording
     try:
         return resolve_runtime_provider(requested=requested, target_model=target_model,
                                         explicit_base_url=explicit_base_url, explicit_api_key=explicit_api_key), None
     except AuthError as primary_exc:
+        _gw_cfg = (config or {}).get("gateway") or {}
+        if not _gw_cfg.get("auto_failover", False):
+            raise
         from hermes_cli.fallback_config import effective_runtime_provider, get_fallback_chain, resolve_entry_api_key
         for entry in get_fallback_chain(config):
             provider = (entry.get("provider") or "").strip().lower()

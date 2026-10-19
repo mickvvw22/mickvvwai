@@ -221,10 +221,7 @@ _NONRETRYABLE_DEFAULT_COPY = (
 )
 _AUTH_COPY: dict[str, str] = {
     "oauth": "{label} rejected your sign-in, so the model can't be reached. Sign in again: `{relogin}`.",
-    "api_key": (
-        "{label} rejected your API key, so the model can't be reached. Update it in "
-        "Settings → Providers, or run `hermes setup` in a terminal."
-    ),
+        "api_key": "“{label}”拒绝了你的 API key，模型无法连接。请前往 设置 → 供应商 更新，或在终端运行 'hermes setup'。",
 }
 
 CONTENT_POLICY_NEXT_STEPS = (

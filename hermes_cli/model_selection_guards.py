@@ -136,6 +136,73 @@ def _context_cache_guard(
 _GUARDS = (_cost_guard, _data_policy_guard, _context_cache_guard)
 
 
+# ---------------------------------------------------------------- 非对话模型（2026-10-19）
+# 为什么需要：视频/图像/音频/向量模型和中转站的聊天模型混在同一个 /v1/models 列表里
+# （例：qwen-image-3.0、wan2.2-t2v-plus、wan2.2-i2v-flash）。它们走的是 /v1/images、
+# /v1/video、/v1/audio 端点，**切到对话上会卡住或收不到回复**（实测卡 1~2 分钟）。
+# 处理方式：① 选择器按钮上打标 ② 切过去前给一次确认（本守卫）。
+_NON_CHAT_KINDS = (
+    ("视频生成", ("t2v", "i2v", "text-to-video", "image-to-video", "veo-", "veo3", "sora", "kling",
+                 "hailuo", "runway", "seedance", "wan2.2", "wanx", "minimax-video")),
+    ("图像生成", ("dall-e", "dalle", "flux", "stable-diffusion", "sdxl", "imagen", "seedream",
+                 "ideogram", "midjourney", "-image", "image-", "qwen-image")),
+    ("语音/音频", ("tts", "whisper", "speech", "music", "-audio", "audio-", "voice-clone")),
+    ("向量/排序", ("embed", "rerank", "moderation")),
+)
+_NON_CHAT_MARKERS = {"视频生成": "🎬", "图像生成": "🖼", "语音/音频": "🔊", "向量/排序": "🧮"}
+
+
+def non_chat_model_kind(model_id: str) -> Optional[str]:
+    """非对话模型的能力归类（"视频生成"/"图像生成"/"语音/音频"/"向量/排序"）；聊天模型返回 None。
+
+    纯字符串判断、无 IO、不抛异常 —— 选择器与守卫共用同一份判定，避免两处规则漂移。
+    """
+    try:
+        mid = (model_id or "").strip().lower()
+        if not mid:
+            return None
+        for kind, tokens in _NON_CHAT_KINDS:
+            if any(tok in mid for tok in tokens):
+                return kind
+        return None
+    except Exception:
+        return None
+
+
+def non_chat_model_marker(model_id: str) -> str:
+    """选择器按钮前缀标记（非对话模型专用），聊天模型返回空串。"""
+    kind = non_chat_model_kind(model_id)
+    return _NON_CHAT_MARKERS.get(kind or "", "")
+
+
+@dataclass(frozen=True)
+class _RawGuard:
+    """守卫原始载荷：``_wrap`` 只要求 ``.message``，这里多带 model/provider 便于展示。"""
+
+    message: str
+    model: str = ""
+    provider: str = ""
+
+
+def _capability_guard(
+    model_name: str, provider: Optional[str], base_url: Optional[str], api_key: Optional[str],
+    model_info: Optional[ModelInfo], ctx: Optional[SelectionContext] = None) -> Optional[SelectionWarning]:
+    """切到「看着不是聊天模型」的模型时提示确认（不阻止，只提醒）。"""
+    kind = non_chat_model_kind(model_name)
+    if not kind:
+        return None
+    payload = _RawGuard(
+        message=(f"⚠️ 这个模型看着不是聊天模型（{kind}）：`{model_name}`\n"
+                 f"它走的是生成端点（图像/视频/音频），切到对话上会卡住或收不到回复。\n"
+                 f"要用它请走 image_generate / video_generate 工具。确定还要切换吗？\n"
+                 f"（This does not look like a chat model — it will stall the conversation.）"),
+        model=model_name, provider=provider or "")
+    return _wrap("capability", "Non-chat Model Warning", payload, model_name, provider)
+
+
+_GUARDS = (_capability_guard, _cost_guard, _data_policy_guard, _context_cache_guard)
+
+
 def selection_warnings(
     model_name: str, *, provider: Optional[str] = None, base_url: Optional[str] = None,
     api_key: Optional[str] = None, model_info: Optional[ModelInfo] = None,
